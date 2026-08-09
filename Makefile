@@ -8,7 +8,7 @@ WS_PORT ?= 3001
 help:
 	@printf '%s\n' \
 		'make build    Build the Docker image' \
-		'make run      Run the container in the background' \
+		'make up       Run the container in the background' \
 		'make rebuild  Stop, rebuild, and run the container' \
 		'make restart  Restart the existing container' \
 		'make stop     Stop and remove the container' \
@@ -19,7 +19,7 @@ help:
 build:
 	docker build --tag $(IMAGE) .
 
-run:
+up:
 	docker run --detach \
 		--rm \
 		--name $(CONTAINER) \
@@ -30,7 +30,7 @@ run:
 		$(IMAGE)
 	@printf 'Quartz is available at http://localhost:%s\n' '$(PORT)'
 
-rebuild: stop build run
+rebuild: stop build up
 
 restart:
 	docker restart $(CONTAINER)
