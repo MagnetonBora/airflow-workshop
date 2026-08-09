@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apache Airflow — Day 1</title>
+  <link rel="stylesheet" href="../shared/css/main.css">
+</head>
+<body>
+  <div class="deck">
+
+    <div class="slide s-section s-title" id="s1">
+      <div class="title-left">
+        <div class="eyebrow">Day 1 · Apache Airflow</div>
+        <h1>Apache Airflow:<br />Basic concepts</h1>
+      </div>
+      <div class="title-visual">
+        <div class="title-image-placeholder">
+          <img src="../shared/images/airflow-logo.png" alt="Apache Airflow logo" class="title-airflow-logo">
+        </div>
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-instructor" id="s2">
+      <div class="instructor-content">
+        <h2>About me</h2>
+        <ul>
+          <li>Big Data Engineer with extensive experience in Python</li>
+          <li>Enthusiastic about math and machine learning</li>
+          <li>Senior Big Data Software Engineer at Softserve</li>
+        </ul>
+      </div>
+      <div class="instructor-photo">
+        <div class="photo-circle">
+          <img src="images/avatar.jpeg" alt="Roman Dryndik">
+        </div>
+        <div class="instructor-name">Roman Dryndik</div>
+        <div class="instructor-title">Senior Big Data Software Engineer</div>
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s3">
+      <h2>Introduction to Apache Airflow</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s4">
+      <div class="section-number">S4</div>
+      <div class="eyebrow">Evolution of orchestration</div>
+      <h2 class="section-heading">From Cron scripts to DAG orchestration</h2>
+      <div class="split2">
+        <div class="split-left">
+          <h3>Cron</h3>
+          <ul class="bullets">
+            <li>Isolated scripts without knowledge of dependencies.</li>
+            <li>Difficult to scale safely and handle retries.</li>
+          </ul>
+          <h3>Airflow</h3>
+          <ul class="bullets">
+            <li>Explicit dependency graph and order control.</li>
+            <li>Run history, observability, and backfill out of the box.</li>
+          </ul>
+        </div>
+        <div class="split-right">
+          <div class="diagram-shell">
+            <svg class="diagram-svg" viewBox="0 0 740 280" role="img" aria-label="Cron vs DAG orchestration">
+              <defs>
+                <marker id="arr-s2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                  <path d="M0,0 L8,4 L0,8 z" fill="#1a6ba7"></path>
+                </marker>
+              </defs>
+              <rect x="40" y="36" width="170" height="44" rx="8" fill="#e0f0fe" stroke="#1a6ba7" stroke-width="2"></rect>
+              <rect x="40" y="116" width="170" height="44" rx="8" fill="#e0f0fe" stroke="#1a6ba7" stroke-width="2"></rect>
+              <rect x="40" y="196" width="170" height="44" rx="8" fill="#e0f0fe" stroke="#1a6ba7" stroke-width="2"></rect>
+              <text x="125" y="63" text-anchor="middle" class="svg-text">script_1.sh</text>
+              <text x="125" y="143" text-anchor="middle" class="svg-text">script_2.sh</text>
+              <text x="125" y="223" text-anchor="middle" class="svg-text">script_3.sh</text>
+
+              <rect x="300" y="116" width="140" height="44" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+              <rect x="520" y="116" width="140" height="44" rx="8" fill="#edf8f2" stroke="#20804d" stroke-width="2"></rect>
+              <text x="370" y="143" text-anchor="middle" class="svg-text">load</text>
+              <text x="590" y="143" text-anchor="middle" class="svg-text">transform</text>
+
+              <line x1="210" y1="58" x2="300" y2="130" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s2)"></line>
+              <line x1="210" y1="138" x2="300" y2="138" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s2)"></line>
+              <line x1="210" y1="218" x2="300" y2="146" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s2)"></line>
+              <line x1="440" y1="138" x2="520" y2="138" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s2)"></line>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s5">
+      <div class="section-number">S5</div>
+      <div class="eyebrow">Workflow Orchestration</div>
+      <h2 class="section-heading">What is workflow orchestration?</h2>
+      <ul class="bullets">
+        <li>Coordinating tasks in the right order.</li>
+        <li>Retries, error handling, and SLA.</li>
+        <li>Parallelism and resource management.</li>
+        <li>Observability: statuses, logs, and run history.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s6">
+      <div class="section-number">S6</div>
+      <div class="eyebrow">ETL/ELT as a DAG</div>
+      <h2 class="section-heading">Why a real ETL pipeline is a graph</h2>
+      <div class="diagram-shell">
+        <svg class="diagram-svg" viewBox="0 0 860 300" role="img" aria-label="Extract API Postgres S3 to load transform notify">
+          <defs>
+            <marker id="arr-s4" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 z" fill="#1a6ba7"></path>
+            </marker>
+          </defs>
+          <rect x="30" y="34" width="160" height="46" rx="8" fill="#e0f0fe" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="30" y="126" width="160" height="46" rx="8" fill="#e0f0fe" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="30" y="218" width="160" height="46" rx="8" fill="#e0f0fe" stroke="#1a6ba7" stroke-width="2"></rect>
+          <text x="110" y="62" text-anchor="middle" class="svg-text">Extract API</text>
+          <text x="110" y="154" text-anchor="middle" class="svg-text">Extract Postgres</text>
+          <text x="110" y="246" text-anchor="middle" class="svg-text">Extract S3</text>
+
+          <rect x="270" y="126" width="130" height="46" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="470" y="126" width="160" height="46" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="690" y="126" width="130" height="46" rx="8" fill="#edf8f2" stroke="#20804d" stroke-width="2"></rect>
+          <text x="335" y="154" text-anchor="middle" class="svg-text">Load</text>
+          <text x="550" y="154" text-anchor="middle" class="svg-text">Transform</text>
+          <text x="755" y="154" text-anchor="middle" class="svg-text">Notify</text>
+
+          <line x1="190" y1="58" x2="270" y2="140" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s4)"></line>
+          <line x1="190" y1="149" x2="270" y2="149" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s4)"></line>
+          <line x1="190" y1="241" x2="270" y2="158" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s4)"></line>
+          <line x1="400" y1="149" x2="470" y2="149" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s4)"></line>
+          <line x1="630" y1="149" x2="690" y2="149" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s4)"></line>
+        </svg>
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s7">
+      <div class="section-number">S7</div>
+      <div class="eyebrow">Limits of applicability</div>
+      <h2 class="section-heading">Batch Orchestration vs Streaming</h2>
+      <ul class="bullets">
+        <li>Airflow was designed as a batch orchestrator.</li>
+        <li>For real-time and event-by-event processing, Flink/Kafka are better.</li>
+        <li>Airflow is excellent for schedules, backfill, and quality checkpoints.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s8">
+      <div class="section-number">S8</div>
+      <div class="eyebrow">Key advantages</div>
+      <h2 class="section-heading">Why teams choose Airflow</h2>
+      <table>
+        <tr><th>Feature</th><th>Value for the team</th></tr>
+        <tr><td>DAG as Python code</td><td>Git, PR, review, CI/CD.</td></tr>
+        <tr><td>Providers</td><td>Integrations with databases, clouds, and messaging systems.</td></tr>
+        <tr><td>UI and observability</td><td>Visibility into dependencies, statuses, and logs.</td></tr>
+        <tr><td>Extensibility</td><td>Custom hooks/operators for your platform.</td></tr>
+        <tr><td>Backfill</td><td>Reloading and recalculating historical windows.</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s9">
+      <div class="section-number">S9</div>
+      <div class="eyebrow">Trade-offs</div>
+      <h2 class="section-heading">What to prepare for during adoption</h2>
+      <ul class="bullets">
+        <li>Steep learning curve: orchestration requires design discipline.</li>
+        <li>The scheduler and metadata DB can become bottlenecks under poor DAG design.</li>
+        <li>You need conventions for style, retry policies, and SLA.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s10">
+      <div class="section-number">S10</div>
+      <div class="eyebrow">Version comparison</div>
+      <h2 class="section-heading">Airflow 2.x vs 3.x</h2>
+      <table>
+        <tr><th>Aspect</th><th>2.x</th><th>3.x</th></tr>
+        <tr><td>Task execution</td><td>Direct access to the database</td><td>Via Task SDK and API</td></tr>
+        <tr><td>Worker isolation</td><td>Limited</td><td>Explicit isolation</td></tr>
+        <tr><td>DAG versioning</td><td>Limited</td><td>DAG Versioning</td></tr>
+        <tr><td>Assets</td><td>No native model</td><td>Has data-aware scheduling</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s11">
+      <div class="section-number">S11</div>
+      <div class="eyebrow">Airflow 2.x vs 3.x</div>
+      <h2 class="section-heading">The main shift: worker isolation</h2>
+      <div class="diagram-shell">
+        <svg class="diagram-svg" viewBox="0 0 980 320" role="img" aria-label="Airflow 2 direct db vs Airflow 3 API isolation">
+          <defs>
+            <marker id="arr-s8" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 z" fill="#1a6ba7"></path>
+            </marker>
+          </defs>
+          <text x="260" y="38" text-anchor="middle" class="svg-text">2.x</text>
+          <rect x="80" y="70" width="160" height="48" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="280" y="70" width="160" height="48" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <text x="160" y="100" text-anchor="middle" class="svg-text">Worker</text>
+          <text x="360" y="100" text-anchor="middle" class="svg-text">Metadata DB</text>
+          <line x1="240" y1="94" x2="280" y2="94" stroke="#1a6ba7" stroke-width="1.6" marker-end="url(#arr-s8)"></line>
+
+          <text x="720" y="38" text-anchor="middle" class="svg-text">3.x</text>
+          <rect x="520" y="70" width="120" height="48" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="680" y="70" width="120" height="48" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="840" y="70" width="120" height="48" rx="8" fill="#edf8f2" stroke="#20804d" stroke-width="2"></rect>
+          <text x="580" y="100" text-anchor="middle" class="svg-text">Worker</text>
+          <text x="740" y="100" text-anchor="middle" class="svg-text">Task SDK</text>
+          <text x="900" y="100" text-anchor="middle" class="svg-text">API Server</text>
+          <rect x="780" y="188" width="170" height="48" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <text x="865" y="218" text-anchor="middle" class="svg-text">Metadata DB</text>
+          <line x1="640" y1="94" x2="680" y2="94" stroke="#1a6ba7" stroke-width="1.6" marker-end="url(#arr-s8)"></line>
+          <line x1="800" y1="94" x2="840" y2="94" stroke="#1a6ba7" stroke-width="1.6" marker-end="url(#arr-s8)"></line>
+          <line x1="900" y1="118" x2="900" y2="188" stroke="#1a6ba7" stroke-width="1.6" marker-end="url(#arr-s8)"></line>
+        </svg>
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s12">
+      <div class="section-number">S12</div>
+      <div class="eyebrow">3.x architecture</div>
+      <h2 class="section-heading">Why part of the core was rewritten</h2>
+      <ul class="bullets">
+        <li>Security and isolation of task execution.</li>
+        <li>Preparing for a polyglot future (SDKs beyond Python).</li>
+        <li>Reducing pressure on the metadata DB.</li>
+        <li>New UI models and data-aware scheduling.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s13">
+      <div class="section-number">S13</div>
+      <div class="eyebrow">Migration risks</div>
+      <h2 class="section-heading">The main trap when moving to 3.x</h2>
+      <pre><code><span class="kw">from</span> airflow.models.taskinstance <span class="kw">import</span> TaskInstance
+
+<span class="com"># Anti-pattern for 3.x: directly reading internal models from task code</span>
+<span class="kw">def</span> <span class="fn">bad_task</span>(**ctx):
+    ti = TaskInstance.get_task_instance(
+        dag_id=<span class="str">"demo"</span>,
+        task_id=<span class="str">"step"</span>,
+        run_id=ctx[<span class="str">"run_id"</span>]
+    )
+    <span class="kw">return</span> ti.state</code></pre>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s14">
+      <h2>Deploying Airflow</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section s-deployment" id="s15">
+      <div class="section-number">S15</div>
+      <div class="eyebrow">Deployment options</div>
+      <h2 class="section-heading">Ways to deploy Airflow</h2>
+      <div class="subtitle">The choice depends on the team stage, SLA, security, and budget.</div>
+      <table class="deployment-table">
+        <tr>
+          <th>Option</th>
+          <th>For whom</th>
+          <th class="col-plus">Pros</th>
+          <th class="col-limits">Limitations</th>
+        </tr>
+        <tr>
+          <td><strong>Local Python</strong><br>(pip + LocalExecutor)</td>
+          <td>Learning,<br>quick experiments</td>
+          <td class="col-plus">Up and running in minutes,<br>minimal infrastructure</td>
+          <td class="col-limits">Does not reflect<br>real production</td>
+        </tr>
+        <tr>
+          <td><strong>Docker Compose</strong></td>
+          <td>Team dev environment,<br>workshop, pre-prod</td>
+          <td class="col-plus">Close to production<br>topology, predictable</td>
+          <td class="col-limits">Manual administration<br>and upgrades</td>
+        </tr>
+        <tr>
+          <td><strong>Kubernetes + Helm</strong><br>(self-managed)</td>
+          <td>Mature<br>platform/data team</td>
+          <td class="col-plus">Scalability,<br>flexibility, control</td>
+          <td class="col-limits">High operational<br>complexity</td>
+        </tr>
+        <tr>
+          <td><strong>Managed Airflow</strong><br>(MWAA / Composer / Astronomer)</td>
+          <td>Focus on the data product,<br>not on ops</td>
+          <td class="col-plus">Less routine,<br>faster time-to-value</td>
+          <td class="col-limits">Cost,<br>provider limitations</td>
+        </tr>
+        <tr>
+          <td><strong>Hybrid</strong><br>(control plane managed + compute self-hosted)</td>
+          <td>Strict requirements<br>for networking and security</td>
+          <td class="col-plus">Balance of control<br>and speed</td>
+          <td class="col-limits">More complex architecture<br>and governance</td>
+        </tr>
+      </table>
+      <div class="deployment-conclusion">The right choice is context-dependent and should reflect the team's current needs.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s16">
+      <div class="section-number">S16</div>
+      <div class="eyebrow">Managed Airflow</div>
+      <h2 class="section-heading">Composer vs MWAA vs Astronomer</h2>
+      <table>
+        <tr><th>Platform</th><th>Advantage</th><th>Drawback</th></tr>
+        <tr><td>GCP Composer</td><td>Deep integration with GCP</td><td>Vendor lock-in</td></tr>
+        <tr><td>AWS MWAA</td><td>Managed service in AWS</td><td>Limited configuration flexibility</td></tr>
+        <tr><td>Astronomer</td><td>Strong DX and tooling</td><td>Additional cost</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s17">
+      <div class="section-number">S17</div>
+      <div class="eyebrow">Installation</div>
+      <h2 class="section-heading">Installing Airflow with Docker Compose</h2>
+      <pre><code>curl -LfO <span class="str">'https://airflow.apache.org/docs/apache-airflow/stable/docker-compose.yaml'</span>
+
+mkdir -p ./dags ./logs ./plugins ./config
+
+<span class="cm"># AIRFLOW_UID — for correct permissions on mounted folders</span>
+<span class="cm"># FERNET_KEY — encrypts sensitive fields in the metadata DB</span>
+echo -e <span class="str">"AIRFLOW_UID=$(id -u)\nFERNET_KEY=$(openssl rand -base64 32 | tr '+/' '-_')"</span> > .env
+
+docker compose up airflow-init   <span class="cm"># one-time initialization</span>
+docker compose up</code></pre>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s18">
+      <div class="section-number">S18</div>
+      <div class="eyebrow">Practice</div>
+      <h2 class="section-heading">Step-by-step Docker startup</h2>
+      <ol class="bullets">
+        <li>Download the template <code>docker-compose.yaml</code>.</li>
+        <li>Create folders <code>dags</code>, <code>logs</code>, <code>plugins</code>.</li>
+        <li>Prepare a <code>.env</code> file with <code>AIRFLOW_UID</code> and keys.</li>
+        <li>Run <code>docker compose up airflow-init</code>.</li>
+        <li>Start the services: <code>docker compose up -d</code>.</li>
+      </ol>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s19">
+      <div class="section-number">S19</div>
+      <div class="eyebrow">Initialization</div>
+      <h2 class="section-heading">Why AIRFLOW_UID and FERNET_KEY are needed</h2>
+      <pre><code><span class="kw">export</span> AIRFLOW_UID=$(id -u)
+<span class="kw">export</span> AIRFLOW_GID=0
+<span class="kw">export</span> FERNET_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+
+docker compose up airflow-init</code></pre>
+      <ul class="bullets">
+        <li><code>AIRFLOW_UID</code> is needed for correct permissions on the volume.</li>
+        <li><code>FERNET_KEY</code> encrypts sensitive fields in the metadata DB.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s20">
+      <div class="section-number">S20</div>
+      <div class="eyebrow">Compose topology</div>
+      <h2 class="section-heading">Services and connections in Airflow 3.x</h2>
+      <div class="diagram-shell">
+        <svg class="diagram-svg" viewBox="0 0 1080 340" role="img" aria-label="Compose services topology">
+          <defs>
+            <marker id="arr-s12" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 z" fill="#1a6ba7"></path>
+            </marker>
+          </defs>
+          <rect x="40" y="130" width="130" height="48" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="210" y="130" width="150" height="48" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="400" y="130" width="150" height="48" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="590" y="130" width="150" height="48" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="780" y="130" width="130" height="48" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="950" y="130" width="100" height="48" rx="8" fill="#edf8f2" stroke="#20804d" stroke-width="2"></rect>
+          <rect x="400" y="40" width="150" height="48" rx="8" fill="#fff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="590" y="40" width="150" height="48" rx="8" fill="#fff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <text x="105" y="160" text-anchor="middle" class="svg-text">Postgres</text>
+          <text x="285" y="160" text-anchor="middle" class="svg-text">API Server</text>
+          <text x="475" y="160" text-anchor="middle" class="svg-text">Scheduler</text>
+          <text x="665" y="160" text-anchor="middle" class="svg-text">Worker</text>
+          <text x="845" y="160" text-anchor="middle" class="svg-text">Triggerer</text>
+          <text x="1000" y="160" text-anchor="middle" class="svg-text">Redis</text>
+          <text x="475" y="70" text-anchor="middle" class="svg-text">DAG Processor</text>
+          <text x="665" y="70" text-anchor="middle" class="svg-text">Web UI</text>
+          <line x1="170" y1="154" x2="210" y2="154" stroke="#1a6ba7" stroke-width="2"></line>
+          <line x1="360" y1="154" x2="400" y2="154" stroke="#1a6ba7" stroke-width="2"></line>
+          <line x1="550" y1="154" x2="590" y2="154" stroke="#1a6ba7" stroke-width="2"></line>
+          <line x1="740" y1="154" x2="780" y2="154" stroke="#1a6ba7" stroke-width="2"></line>
+          <line x1="910" y1="154" x2="950" y2="154" stroke="#1a6ba7" stroke-width="2"></line>
+          <line x1="475" y1="88" x2="475" y2="130" stroke="#1a6ba7" stroke-width="2"></line>
+          <line x1="665" y1="88" x2="665" y2="130" stroke="#1a6ba7" stroke-width="2"></line>
+        </svg>
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s21">
+      <div class="section-number">S21</div>
+      <div class="eyebrow">Component roles</div>
+      <h2 class="section-heading">Airflow 3.x components</h2>
+      <table>
+        <tr><th>Component</th><th>Purpose</th></tr>
+        <tr><td>Metadata DB</td><td>Stores the state of DAGs, DagRuns, TaskInstances, connections, variables, and execution history.</td></tr>
+        <tr><td>API Server</td><td>A single access point to Airflow state and operations for the UI, SDK, and internal services.</td></tr>
+        <tr><td>Scheduler</td><td>Schedules runs, evaluates dependencies, and decides which tasks to start next.</td></tr>
+        <tr><td>Worker</td><td>Runs task instances in the execution environment and sends results/statuses back.</td></tr>
+        <tr><td>Triggerer</td><td>Handles deferrable tasks and asynchronous waits without blocking worker slots.</td></tr>
+        <tr><td>Redis</td><td>Broker/queue for delivering tasks and control messages (for example, in a Celery topology).</td></tr>
+        <tr><td>DAG Processor</td><td>Parses DAG files, validates DAG code, and serializes definitions for the scheduler/UI.</td></tr>
+        <tr><td>Web UI</td><td>Visualization of DAGs and runs, viewing logs, and manual operations (trigger, clear, pause/unpause).</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s22">
+      <div class="section-number">S22</div>
+      <div class="eyebrow">Troubleshooting</div>
+      <h2 class="section-heading">Common startup issues</h2>
+      <table>
+        <tr><th>Symptom</th><th>Cause</th><th>Solution</th></tr>
+        <tr><td>UI is blank</td><td>init was skipped</td><td>Run <code>airflow-init</code> again</td></tr>
+        <tr><td>DAG is not visible</td><td>Import error / path issue</td><td>Check the scheduler and dag-processor logs</td></tr>
+        <tr><td>No runs</td><td>DAG paused</td><td>Unpause in the UI or CLI</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s23">
+      <h2>UI</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s24">
+      <div class="section-number">S24</div>
+      <div class="eyebrow">Web UI</div>
+      <h2 class="section-heading">Airflow interface</h2>
+      <div style="display: flex; justify-content: center; align-items: center; height: 80%;">
+        <img src="images/airflow_ui01.png" alt="Airflow UI screenshot" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s25">
+      <div class="section-number">S25</div>
+      <div class="eyebrow">Web UI</div>
+      <h2 class="section-heading">Anatomy of the Airflow 3.x interface</h2>
+      <ul class="bullets">
+        <li>DAGs: list of pipelines and their health.</li>
+        <li>Grid: status of runs and task instances over time.</li>
+        <li>Graph/Gantt: dependencies and durations.</li>
+        <li>Admin/Assets: connections, variables, and data assets.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s26">
+      <div class="section-number">S26</div>
+      <div class="eyebrow">Day-to-day work</div>
+      <h2 class="section-heading">Grid, Graph, and Gantt</h2>
+      <ul class="bullets">
+        <li>Grid: first, we look where and when a run failed.</li>
+        <li>Graph: we analyze upstream/downstream and trigger rules.</li>
+        <li>Gantt: we look for time bottlenecks.</li>
+        <li>Task details: we check logs, try number, duration, and the worker hostname.</li>
+        <li>Auto-retry vs manual restart: we distinguish transient failures from code errors.</li>
+      </ul>
+      <table>
+        <tr><th>Screen</th><th>When to open it</th><th>What to look for</th></tr>
+        <tr><td>Grid</td><td>Production incident</td><td>Problematic run, task status, and failure pattern by date</td></tr>
+        <tr><td>Graph</td><td>The chain breaks</td><td>Broken upstream, incorrect trigger rule, excess dependencies</td></tr>
+        <tr><td>Gantt</td><td>SLA degradation</td><td>Long tasks, executor queue, and time bottleneck</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s27">
+      <h2>Architecture and key concepts</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s28">
+      <div class="section-number">S28</div>
+      <div class="eyebrow">Terminology basics</div>
+      <h2 class="section-heading">DAG, DagRun, Operator, Task, TaskInstance</h2>
+      <ul class="bullets">
+        <li><strong>DAG</strong> - description of a process as a directed graph of dependencies (what runs and in what order). An analogy to a script or blueprint.</li>
+        <li><strong>DagRun</strong> - a specific run of a DAG for a given time interval. An analogy to one execution of a script on a schedule.</li>
+        <li><strong>Operator</strong> - a template for an action: Bash, Python, SQL, Sensors. An analogy to a class or step type.</li>
+        <li><strong>Task</strong> - a concrete node in a DAG, created from an Operator and having <code>task_id</code>. An analogy to an object/instance of a step.</li>
+        <li><strong>TaskInstance</strong> - a run of a Task in a specific DagRun (for a specific date/interval) with its own state: <code>queued</code>, <code>running</code>, <code>success</code>, <code>failed</code>.</li>
+      </ul>
+      <table>
+        <tr><th>Airflow entity</th><th>What it is</th><th>Analogy</th></tr>
+        <tr><td>DAG</td><td>Graph of work and dependencies</td><td>Recipe/blueprint of the process</td></tr>
+        <tr><td>DagRun</td><td>One DAG run over time</td><td>One run of the recipe (for example, for a day)</td></tr>
+        <tr><td>Operator</td><td>Step type</td><td>Class in OOP</td></tr>
+        <tr><td>Task</td><td>A concrete step in the DAG</td><td>Object (instance of a class)</td></tr>
+        <tr><td>TaskInstance</td><td>Task in a specific run</td><td>State of the object over time</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s29">
+      <div class="section-number">S29</div>
+      <div class="eyebrow">Example</div>
+      <h2 class="section-heading">Operator as a template: BashOperator</h2>
+      <pre><code><span class="kw">from</span> airflow.operators.bash <span class="kw">import</span> BashOperator
+
+say_hello = BashOperator(
+    task_id=<span class="str">"say_hello"</span>,
+    bash_command=<span class="str">"echo Hello"</span>,
+)</code></pre>
+      <div class="hibox"><code>say_hello</code> here is a Task created from the Operator template.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s30">
+      <div class="section-number">S30</div>
+      <div class="eyebrow">Operators</div>
+      <h2 class="section-heading">Operator categories</h2>
+      <ul class="bullets">
+        <li>Action operators: perform a business action.</li>
+        <li>Transfer operators: move data between systems.</li>
+        <li>Sensors: wait for an event or data readiness.</li>
+        <li>Deferrable operators: save worker slots while waiting.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s31">
+      <div class="section-number">S31</div>
+      <div class="eyebrow">Cheat sheet</div>
+      <h2 class="section-heading">Top 5 operators</h2>
+      <table>
+        <tr><th>Operator</th><th>Package</th><th>Purpose</th></tr>
+        <tr><td>PythonOperator</td><td>core</td><td>Python functions</td></tr>
+        <tr><td>BashOperator</td><td>core</td><td>Shell commands</td></tr>
+        <tr><td>EmptyOperator</td><td>core</td><td>Helper graph nodes</td></tr>
+        <tr><td>TriggerDagRunOperator</td><td>core</td><td>Launch another DAG</td></tr>
+        <tr><td>PostgresOperator</td><td>postgres</td><td>SQL in Postgres</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+      <div class="slide s-code" id="s32">
+        <div class="section-number">S32</div>
+        <div class="eyebrow">Example DAG</div>
+        <h2 class="section-heading">DAG example</h2>
+        <pre><code>
+<span class="kw">from</span> airflow <span class="kw">import</span> DAG
+<span class="kw">from</span> airflow.operators.bash <span class="kw">import</span> BashOperator
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime
+
+<span class="kw">with</span> DAG(
+    dag_id=<span class="str">"bash_dependencies_demo"</span>,
+    start_date=datetime(2026, 1, 1),
+    schedule=<span class="str">"@daily"</span>,
+    catchup=<span class="kw">False</span>,
+) <span class="kw">as</span> dag:
+    start = BashOperator(task_id=<span class="str">"start"</span>, bash_command=<span class="str">"date"</span>)
+    task_a = BashOperator(task_id=<span class="str">"task_a"</span>, bash_command=<span class="str">"echo 'Processing A'; sleep 2"</span>)
+    task_b = BashOperator(task_id=<span class="str">"task_b"</span>, bash_command=<span class="str">"echo 'Processing B'; sleep 3"</span>)
+    finish = BashOperator(task_id=<span class="str">"finish"</span>, bash_command=<span class="str">"echo 'Done'"</span>)
+
+    start &gt;&gt; [task_a, task_b] &gt;&gt; finish</code></pre>
+        <div class="slide-logo">Apache Airflow · Workshop</div>
+      </div>
+
+    <div class="slide s-code" id="s33">
+      <div class="section-number">S33</div>
+      <div class="eyebrow">Practice DAG</div>
+      <h2 class="section-heading">Parallel and sequential execution</h2>
+      <div class="split2">
+        <div class="split-left">
+          <h3>Parallel</h3>
+          <pre><code>start >> [task_a, task_b] >> finish</code></pre>
+          <div class="hibox">Both tasks run in parallel; the branches join at <code>finish</code>.</div>
+        </div>
+        <div class="split-right">
+          <h3>Sequential</h3>
+          <pre><code>start >> task_a >> task_b >> finish</code></pre>
+          <div class="hibox"><code>task_b</code> starts only after <code>task_a</code> succeeds.</div>
+        </div>
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+      <div class="slide s-section" id="s34">
+        <div class="section-number">S34</div>
+        <div class="eyebrow">Visualization</div>
+        <h2 class="section-heading">DAG example in the UI</h2>
+        <div style="display: flex; justify-content: center; align-items: center; height: 80%;">
+          <img src="images/dag_example.png" alt="DAG example screenshot" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+        </div>
+        <div class="slide-logo">Apache Airflow · Workshop</div>
+      </div>
+
+    <div class="slide s-section" id="s35">
+      <div class="section-number">S35</div>
+      <div class="eyebrow">Execution model</div>
+      <h2 class="section-heading">A DAG file is a blueprint, not a process</h2>
+      <div class="diagram-shell">
+        <svg class="diagram-svg" viewBox="0 0 1080 300" role="img" aria-label="DAG file blueprint to multiple DagRuns with task instances">
+          <rect x="60" y="114" width="220" height="68" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <text x="170" y="144" text-anchor="middle" class="svg-text">DAG file</text>
+          <text x="170" y="166" text-anchor="middle" class="svg-text">dag_id: my_first_dag</text>
+
+          <rect x="390" y="24" width="300" height="70" rx="8" fill="#e0f0fe" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="390" y="114" width="300" height="70" rx="8" fill="#fff4e6" stroke="#d17b00" stroke-width="2"></rect>
+          <rect x="390" y="204" width="300" height="70" rx="8" fill="#edf8f2" stroke="#20804d" stroke-width="2"></rect>
+
+          <text x="540" y="50" text-anchor="middle" class="svg-text">DagRun 2026-01-01</text>
+          <text x="540" y="72" text-anchor="middle" class="svg-text">A: success  B: success</text>
+
+          <text x="540" y="140" text-anchor="middle" class="svg-text">DagRun 2026-01-02</text>
+          <text x="540" y="162" text-anchor="middle" class="svg-text">A: success  B: failed</text>
+
+          <text x="540" y="230" text-anchor="middle" class="svg-text">DagRun 2026-01-03</text>
+          <text x="540" y="252" text-anchor="middle" class="svg-text">A: running  B: queued</text>
+
+          <line x1="280" y1="138" x2="390" y2="59" stroke="#1a6ba7" stroke-width="2"></line>
+          <line x1="280" y1="148" x2="390" y2="149" stroke="#1a6ba7" stroke-width="2"></line>
+          <line x1="280" y1="158" x2="390" y2="239" stroke="#1a6ba7" stroke-width="2"></line>
+
+        </svg>
+      </div>
+      <div class="hibox">A single DAG file produces many DagRuns, and each DagRun contains its own TaskInstances.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s36">
+      <div class="section-number">S36</div>
+      <div class="eyebrow">Code vs process</div>
+      <h2 class="section-heading">How Airflow sees a DAG file</h2>
+      <div class="diagram-shell">
+        <svg class="diagram-svg" viewBox="0 0 980 280" role="img" aria-label="DAG file parse to DagRun and TaskInstances">
+          <defs>
+            <marker id="arr-s22" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 z" fill="#1a6ba7"></path>
+            </marker>
+          </defs>
+          <rect x="60" y="118" width="190" height="52" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="330" y="118" width="220" height="52" rx="8" fill="#ffffff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="630" y="60" width="170" height="52" rx="8" fill="#e0f0fe" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="630" y="178" width="230" height="52" rx="8" fill="#edf8f2" stroke="#20804d" stroke-width="2"></rect>
+          <text x="155" y="150" text-anchor="middle" class="svg-text">DAG file</text>
+          <text x="440" y="150" text-anchor="middle" class="svg-text">Scheduler parses file</text>
+          <text x="715" y="92" text-anchor="middle" class="svg-text">DagRun</text>
+          <text x="745" y="210" text-anchor="middle" class="svg-text">TaskInstances</text>
+          <line x1="250" y1="144" x2="330" y2="144" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s22)"></line>
+          <line x1="550" y1="136" x2="630" y2="92" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s22)"></line>
+          <line x1="550" y1="152" x2="630" y2="204" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s22)"></line>
+        </svg>
+      </div>
+      <div class="hibox">The scheduler parses the DAG definition, creates a <code>DagRun</code>, and tracks each task in that run as a separate <code>TaskInstance</code>.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s37">
+      <div class="section-number">S37</div>
+      <div class="eyebrow">TaskInstance states</div>
+      <h2 class="section-heading">Task lifecycle</h2>
+      <table>
+        <tr><th>Status</th><th>Meaning</th></tr>
+        <tr><td>queued</td><td>Waiting for an execution slot</td></tr>
+        <tr><td>running</td><td>Currently running on a worker</td></tr>
+        <tr><td>success</td><td>Completed successfully</td></tr>
+        <tr><td>failed</td><td>Completed with an error</td></tr>
+        <tr><td>skipped</td><td>Skipped by DAG logic</td></tr>
+        <tr><td>upstream_failed</td><td>Was not started due to upstream failure</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s38">
+      <div class="section-number">S38</div>
+      <div class="eyebrow">Connection & Hook</div>
+      <h2 class="section-heading">Hooks</h2>
+      <ul class="bullets">
+        <li><strong>Hook</strong> is Airflow’s software client to a service (Postgres, S3, GCS, Slack, etc.).</li>
+        <li><strong>Connection</strong> stores connection parameters: host, port, login, password, schema, and extras.</li>
+      </ul>
+      <pre><code><span class="kw">from</span> airflow.providers.postgres.hooks.postgres <span class="kw">import</span> PostgresHook
+
+<span class="kw">def</span> <span class="fn">read_users</span>():
+    hook = PostgresHook(postgres_conn_id=<span class="str">"analytics_pg"</span>)
+    rows = hook.get_records(<span class="str">"SELECT id, email FROM users LIMIT 100"</span>)
+    <span class="kw">return</span> rows</code></pre>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s39">
+      <div class="section-number">S39</div>
+      <div class="eyebrow">Sensors</div>
+      <h2 class="section-heading">Sensors</h2>
+      <ul class="bullets">
+        <li><strong>Sensor</strong> is a special type of task that waits for a condition to be met before continuing.</li>
+        <li><strong>poke</strong> — periodic polling of a condition: the sensor checks every few seconds whether the event has occurred.</li>
+        <li><strong>deferrable</strong> — the task temporarily releases the worker and waits asynchronously via the Triggerer.</li>
+        <li><strong>deferrable</strong> is better for long waits because it saves worker slots.</li>
+        <li><strong>Why it is needed:</strong> sensors help run the next step only after a file, event, API response, or other data readiness condition appears.</li>
+        <li>The choice depends on whether you need simple polling or more scalable asynchronous waiting.</li>
+      </ul>
+      <pre><code><span class="kw">from</span> airflow.providers.standard.sensors.filesystem <span class="kw">import</span> FileSensor
+
+wait_for_file = FileSensor(
+    task_id=<span class="str">"wait_for_drop"</span>,
+    filepath=<span class="str">"/opt/airflow/data/input.csv"</span>,
+    poke_interval=30,
+    timeout=1800,
+    deferrable=<span class="kw">True</span>,
+)</code></pre>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s40">
+      <div class="section-number">S40</div>
+      <div class="eyebrow">Variables</div>
+      <h2 class="section-heading">Variables</h2>
+      <ul class="bullets">
+        <li>A Variable is a global key-value store in the metadata DB for runtime configuration of DAGs.</li>
+        <li>Do not read a Variable at the top level of a DAG file; it slows down and complicates parsing.</li>
+      </ul>
+      <pre><code><span class="kw">from</span> airflow.models <span class="kw">import</span> Variable
+
+<span class="kw">@task</span>
+<span class="kw">def</span> <span class="fn">send_report</span>():
+    channel = Variable.get(<span class="str">"alerts_channel"</span>, default_var=<span class="str">"#data-alerts"</span>)
+    <span class="kw">return</span> channel</code></pre>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s41">
+      <div class="section-number">S41</div>
+      <div class="eyebrow">XCom</div>
+      <h2 class="section-heading">XCom</h2>
+      <div style="margin: 0 auto; font-size: 0.80em;">
+        <ul class="bullets">
+          <li><strong>XCom (cross-communication)</strong> — a mechanism for exchanging data between Airflow tasks.</li>
+          <li>Stores small values in the <strong>metadata DB</strong>.</li>
+          <li>Each value is tied to <strong>DAG + run + task + key</strong>.</li>
+          <li>The data belongs to a <strong>specific run</strong>, rather than being global.</li>
+          <li>Returning a value from one <code>@task</code> and passing it to another happens via <strong>XCom</strong>.</li>
+        </ul>
+        <div class="split2">
+          <div class="split-left">
+            <h3>TaskFlow</h3>
+            <pre><code><span class="kw">@task</span>
+<span class="kw">def</span> <span class="fn">extract</span>():
+    <span class="kw">return</span> {<span class="str">"cnt"</span>: 42}</code></pre>
+          </div>
+          <div class="split-right">
+            <h3>Classic API</h3>
+            <pre><code>ti.xcom_push(key=<span class="str">"cnt"</span>, value=42)
+ti.xcom_pull(task_ids=<span class="str">"extract"</span>, key=<span class="str">"cnt"</span>)</code></pre>
+          </div>
+        </div>
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s42">
+      <div class="section-number">S42</div>
+      <div class="eyebrow">TaskFlow data passing</div>
+      <h2 class="section-heading">XCom in TaskFlow</h2>
+      <ul class="bullets">
+        <li><strong>extract()</strong> returns a dictionary, and Airflow stores it as XCom.</li>
+        <li><strong>transform(data)</strong> gets the result as an argument, effectively doing an xcom_pull.</li>
+        <li>As a result, one task passes data to the next without an explicit push/pull call.</li>
+        <li>This is the convenient TaskFlow syntax for a chain of data processing between tasks.</li>
+      </ul>
+      <pre><code><span class="kw">@task</span>
+<span class="kw">def</span> <span class="fn">extract</span>():
+    <span class="kw">return</span> {<span class="str">"raw_value"</span>: 42}
+
+<span class="kw">@task</span>
+<span class="kw">def</span> <span class="fn">transform</span>(data: dict):
+    <span class="kw">return</span> data[<span class="str">"raw_value"</span>] * 2
+
+transform(extract())</code></pre>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s43">
+      <div class="section-number">S43</div>
+      <div class="eyebrow">Component roles</div>
+      <h2 class="section-heading">How Airflow moves tasks through the system</h2>
+      <table class="deployment-table">
+        <tr><th>Component</th><th>Role</th><th>What it does</th></tr>
+        <tr><td>DAG Processor</td><td>Parsing</td><td>Reads DAG files and prepares the graph for execution.</td></tr>
+        <tr><td>Scheduler</td><td>Scheduling</td><td>Decides when to run task instances and in what order.</td></tr>
+        <tr><td>Executor</td><td>Dispatcher</td><td>Routes tasks to the appropriate execution environment.</td></tr>
+        <tr><td>Worker</td><td>Executor</td><td>Actually executes the task code.</td></tr>
+        <tr><td>Metadata DB</td><td>State</td><td>Stores statuses, logs, metadata, and run history.</td></tr>
+        <tr><td>API Server</td><td>API</td><td>Handles web endpoints, the UI, and orchestration control.</td></tr>
+        <tr><td>Triggerer</td><td>Waiting</td><td>Supports deferrable tasks and asynchronous waits.</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s44">
+      <div class="section-number">S44</div>
+      <div class="eyebrow">Executor vs Worker</div>
+      <h2 class="section-heading">Executor vs Worker</h2>
+      <table>
+        <tr><th>Role</th><th>Executor</th><th>Worker</th></tr>
+        <tr><td>Purpose</td><td>Task routing</td><td>Actual execution</td></tr>
+        <tr><td>Analogy</td><td>Taxi dispatcher</td><td>Driver</td></tr>
+        <tr><td>Where it lives</td><td>Orchestration service</td><td>Execution environment</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s45">
+      <div class="section-number">S45</div>
+      <div class="eyebrow">Executors</div>
+      <h2 class="section-heading">Most common executors</h2>
+      <table>
+        <tr><th>Executor</th><th>Principle</th><th>Backend</th><th>When to use it</th></tr>
+        <tr><td>Sequential</td><td>One task at a time</td><td>None</td><td>Local experiments</td></tr>
+        <tr><td>Local</td><td>Parallel execution on a single server</td><td>None</td><td>Small installations</td></tr>
+        <tr><td>Celery</td><td>Task queue</td><td>Redis/RabbitMQ</td><td>Classic production</td></tr>
+        <tr><td>Kubernetes</td><td>Pod per task</td><td>K8s API</td><td>Cloud elasticity</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s46">
+      <div class="section-number">S46</div>
+      <div class="eyebrow">Task SDK</div>
+      <h2 class="section-heading">Task Execution API in Airflow 3.x</h2>
+      <ul class="bullets">
+        <li><strong>Worker</strong> runs task code and interacts with Airflow through the <strong>Task SDK</strong>, not directly with the database.</li>
+        <li><strong>Task SDK</strong> provides an API for getting context, updating status, heartbeat, and working with XCom.</li>
+        <li><strong>API Server</strong> acts as an intermediate layer between task execution and Airflow’s internal services.</li>
+        <li><strong>Metadata DB</strong> stores task state, DAG runs, and other execution metadata.</li>
+        <li>This architecture makes Airflow 3.x more modular, secure, and scalable.</li>
+      </ul>
+      <div class="diagram-shell">
+        <svg class="diagram-svg" viewBox="0 0 980 220" role="img" aria-label="Worker task sdk api server flow">
+          <defs>
+            <marker id="arr-s35" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 z" fill="#1a6ba7"></path>
+            </marker>
+          </defs>
+          <rect x="80" y="78" width="170" height="50" rx="8" fill="#fff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="320" y="78" width="170" height="50" rx="8" fill="#fff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="540" y="78" width="170" height="50" rx="8" fill="#edf8f2" stroke="#20804d" stroke-width="2"></rect>
+          <rect x="760" y="78" width="140" height="50" rx="8" fill="#fff" stroke="#1a6ba7" stroke-width="2"></rect>
+          <text x="165" y="108" text-anchor="middle" class="svg-text">Worker</text>
+          <text x="405" y="108" text-anchor="middle" class="svg-text">Task SDK</text>
+          <text x="633" y="108" text-anchor="middle" class="svg-text">API Server</text>
+          <text x="830" y="108" text-anchor="middle" class="svg-text">Metadata DB</text>
+          <line x1="250" y1="103" x2="320" y2="103" stroke="#1a6ba7" stroke-width="1.6" marker-end="url(#arr-s35)"></line>
+          <line x1="490" y1="103" x2="540" y2="103" stroke="#1a6ba7" stroke-width="1.6" marker-end="url(#arr-s35)"></line>
+          <line x1="710" y1="103" x2="760" y2="103" stroke="#1a6ba7" stroke-width="1.6" marker-end="url(#arr-s35)"></line>
+        </svg>
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s47">
+      <h2>Practical lab</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s48">
+      <h2>Day 1 complete</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+  </div>
+
+  <div class="progress" id="progress">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+
+  <div class="controls">
+    <span class="ctr" id="slide-counter">1 / 48</span>
+    <div class="dots" id="dots"></div>
+  </div>
+
+  <script src="../shared/js/deck.js"></script>
+</body>
+</html>

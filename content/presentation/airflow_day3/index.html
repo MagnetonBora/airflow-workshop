@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apache Airflow — Day 3</title>
+  <link rel="stylesheet" href="../shared/css/main.css">
+</head>
+<body>
+  <div class="deck">
+
+    <div class="slide s-section s-title" id="s1">
+      <div class="title-left">
+        <div class="eyebrow">Day 3 · Apache Airflow</div>
+        <h1>Production,<br />diagnostics,<br />and monitoring</h1>
+        <div class="subtitle">Testing, deployment, observability, security, and scale</div>
+      </div>
+      <div class="title-visual"><div class="title-image-placeholder"><img src="../shared/images/airflow-logo.png" alt="Apache Airflow logo" class="title-airflow-logo"></div></div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s2">
+      <div class="section-number">S2</div>
+      <div class="eyebrow">Overview</div>
+      <h2 class="section-heading">From working DAGs to production systems</h2>
+      <ul class="bullets">
+        <li>Protect deployment with automated quality gates.</li>
+        <li>Test imports, graph structure, business logic, and task execution.</li>
+        <li>Diagnose failures from the cheapest evidence first.</li>
+        <li>Design retries and backfills around idempotent behavior.</li>
+        <li>Monitor, secure, and scale the platform deliberately.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s3">
+      <div class="section-number">S3</div>
+      <div class="eyebrow">Production best practices</div>
+      <h2 class="section-heading">The first gate: can every DAG import?</h2>
+      <pre><code><span class="kw">from</span> airflow.models <span class="kw">import</span> DagBag
+
+<span class="kw">def</span> <span class="fn">test_no_import_errors</span>():
+    dag_bag = DagBag()
+    <span class="kw">assert</span> len(dag_bag.import_errors) == 0</code></pre>
+      <ul class="bullets">
+        <li><code>DagBag</code> scans and imports DAG files like the DAG Processor.</li>
+        <li>It records <code>SyntaxError</code>, <code>NameError</code>, missing modules, and top-level exceptions.</li>
+        <li>This gate proves importability, not business correctness.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s4">
+      <div class="section-number">S4</div>
+      <div class="eyebrow">Import-test exercise</div>
+      <h2 class="section-heading">Break a DAG, observe the gate, fix it</h2>
+      <pre><code><span class="kw">from</span> airflow.decorators <span class="kw">import</span> dag, task
+<span class="kw">import</span> nonexistent_module  <span class="com"># Intentionally missing.</span>
+
+<span class="kw">@dag</span>(schedule=<span class="str">"@daily"</span>, start_date=datetime(2026, 1, 1), catchup=<span class="kw">False</span>)
+<span class="kw">def</span> <span class="fn">broken_import_dag</span>():
+    <span class="kw">@task</span>
+    <span class="kw">def</span> <span class="fn">run</span>():
+        print(<span class="str">"This task will never run"</span>)
+    run()</code></pre>
+      <div class="hibox"><code>pytest tests/test_dag_integrity.py -v</code> reports the missing module and broken file path.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s5">
+      <div class="section-number">S5</div>
+      <div class="eyebrow">Import-test boundaries</div>
+      <h2 class="section-heading">A green test can still be a false positive</h2>
+      <ul class="bullets">
+        <li><code>DagBag()</code> uses the configured DAG folder, not necessarily the current directory.</li>
+        <li>Scanning zero DAGs produces zero import errors.</li>
+        <li>A successful import says nothing about dependencies or business behavior.</li>
+        <li>Long-lived Python processes may retain stale imported modules.</li>
+      </ul>
+      <div class="hibox">Assert the expected DAG IDs or minimum DAG count as well as an empty <code>import_errors</code> dictionary.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s6">
+      <div class="section-number">S6</div>
+      <div class="eyebrow">CI/CD</div>
+      <h2 class="section-heading">Only validated DAGs reach production</h2>
+      <div class="diagram-shell">
+        <svg class="diagram-svg" viewBox="0 0 1080 260" role="img" aria-label="DAG CI/CD quality gate pipeline">
+          <defs><marker id="arr-s6" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#1a6ba7"></path></marker></defs>
+          <g fill="#e0f0fe" stroke="#1a6ba7" stroke-width="2">
+            <rect x="25" y="82" width="155" height="72" rx="8"></rect><rect x="235" y="82" width="155" height="72" rx="8"></rect><rect x="445" y="82" width="170" height="72" rx="8"></rect><rect x="670" y="82" width="155" height="72" rx="8"></rect>
+          </g>
+          <rect x="880" y="82" width="170" height="72" rx="8" fill="#edf8f2" stroke="#20804d" stroke-width="2"></rect>
+          <g class="svg-text" text-anchor="middle"><text x="102" y="113">git push</text><text x="102" y="136">Pull Request</text><text x="312" y="125">ruff check</text><text x="530" y="113">pytest</text><text x="530" y="136">DagBag</text><text x="747" y="125">Deploy</text><text x="965" y="113">DAG Processor</text><text x="965" y="136">discovers file</text></g>
+          <g stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s6)"><line x1="180" y1="118" x2="235" y2="118"></line><line x1="390" y1="118" x2="445" y2="118"></line><line x1="615" y1="118" x2="670" y2="118"></line><line x1="825" y1="118" x2="880" y2="118"></line></g>
+          <text x="425" y="195" text-anchor="middle" class="svg-text">Any failed gate stops delivery</text>
+        </svg>
+      </div>
+      <div class="hibox">Pin compatible Airflow and provider versions with requirements and constraints in every environment.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s7">
+      <div class="section-number">S7</div>
+      <div class="eyebrow">CI/CD</div>
+      <h2 class="section-heading">A minimal deployment workflow</h2>
+      <pre><code><span class="kw">-</span> name: Lint
+  run: ruff check dags/
+
+<span class="kw">-</span> name: Import test
+  run: pytest tests/test_dag_integrity.py -v
+
+<span class="kw">-</span> name: Deploy DAGs
+  <span class="kw">if</span>: success()
+  run: gsutil -m rsync -r dags/ gs://${{ secrets.COMPOSER_BUCKET }}/dags/</code></pre>
+      <ul class="bullets"><li>Composer: <code>gsutil rsync</code>.</li><li>MWAA: <code>aws s3 sync</code>.</li><li>Astronomer: <code>astro deploy</code>.</li><li>Kubernetes: Git plus git-sync.</li></ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s8">
+      <div class="section-number">S8</div>
+      <div class="eyebrow">Airflow 3 DAG Bundles</div>
+      <h2 class="section-heading">Let Airflow retrieve DAGs from Git</h2>
+      <pre><code><span class="com">[dag_processor]</span>
+dag_bundle_config_list = [
+  {
+    <span class="str">"name"</span>: <span class="str">"my_git_bundle"</span>,
+    <span class="str">"classpath"</span>: <span class="str">"airflow.providers.git.bundles.git.GitDagBundle"</span>,
+    <span class="str">"kwargs"</span>: {
+      <span class="str">"tracking_ref"</span>: <span class="str">"main"</span>,
+      <span class="str">"git_conn_id"</span>: <span class="str">"my_git_conn"</span>
+    }
+  }
+]</code></pre>
+      <div class="hibox">Track <code>main</code> for automatic updates or a commit SHA for deterministic deployment.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s9">
+      <div class="section-number">S9</div>
+      <div class="eyebrow">DAG versioning</div>
+      <h2 class="section-heading">Bundle versions and DAG Versions are different</h2>
+      <div class="diagram-shell">
+        <svg class="diagram-svg" viewBox="0 0 1040 250" role="img" aria-label="Git commit to DagRun version relationship">
+          <defs><marker id="arr-s9" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#1a6ba7"></path></marker></defs>
+          <g fill="#e0f0fe" stroke="#1a6ba7" stroke-width="2"><rect x="35" y="80" width="175" height="70" rx="8"></rect><rect x="285" y="80" width="190" height="70" rx="8"></rect><rect x="550" y="80" width="180" height="70" rx="8"></rect></g>
+          <rect x="805" y="80" width="190" height="70" rx="8" fill="#edf8f2" stroke="#20804d" stroke-width="2"></rect>
+          <g class="svg-text" text-anchor="middle"><text x="122" y="122">Git commit</text><text x="380" y="108">GitDagBundle</text><text x="380" y="132">version</text><text x="640" y="108">Parsed DAG</text><text x="640" y="132">DAG Version</text><text x="900" y="122">DagRun</text></g>
+          <g stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s9)"><line x1="210" y1="115" x2="285" y2="115"></line><line x1="475" y1="115" x2="550" y2="115"></line><line x1="730" y1="115" x2="805" y2="115"></line></g>
+        </svg>
+      </div>
+      <ul class="bullets"><li>Git versions the whole bundle.</li><li>Airflow versions each parsed DAG separately.</li><li>Not every commit creates a new version for every DAG.</li></ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s10">
+      <div class="section-number">S10</div>
+      <div class="eyebrow">Rollback</div>
+      <h2 class="section-heading">Fix production through the same pipeline</h2>
+      <ol class="bullets">
+        <li>Revert the offending commit in Git.</li>
+        <li>Run lint, import tests, and deployment again.</li>
+        <li>Inspect DagRuns created from the broken DAG Version.</li>
+        <li>Decide explicitly whether those runs should finish or stop.</li>
+      </ol>
+      <div class="hibox">A running DagRun does not switch to a corrected graph halfway through execution.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s11">
+      <div class="section-number">S11</div>
+      <div class="eyebrow">Testing strategy</div>
+      <h2 class="section-heading">Four levels catch different failures</h2>
+      <table>
+        <tr><th>Level</th><th>Proves</th><th>Typical tool</th></tr>
+        <tr><td>Import</td><td>DAG files load</td><td><code>DagBag</code></td></tr>
+        <tr><td>Structure</td><td>Tasks and edges exist</td><td>pytest + DAG API</td></tr>
+        <tr><td>Unit</td><td>Business logic is correct</td><td>plain pytest</td></tr>
+        <tr><td>Task execution</td><td>One task runs in Airflow context</td><td><code>airflow tasks test</code></td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s12">
+      <div class="section-number">S12</div>
+      <div class="eyebrow">Structure tests</div>
+      <h2 class="section-heading">Verify the graph, not only the import</h2>
+      <pre><code><span class="kw">def</span> <span class="fn">test_dag_structure</span>():
+    dag = DagBag().get_dag(<span class="str">"order_report"</span>)
+    <span class="kw">assert</span> dag <span class="kw">is not None</span>
+    <span class="kw">assert</span> len(dag.tasks) == 4
+
+    extract = dag.get_task(<span class="str">"extract_orders"</span>)
+    downstream = {task.task_id <span class="kw">for</span> task <span class="kw">in</span> extract.downstream_list}
+    <span class="kw">assert</span> <span class="str">"clean_orders"</span> <span class="kw">in</span> downstream</code></pre>
+      <div class="hibox">This test catches an accidentally removed dependency even when the DAG still imports.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s13">
+      <div class="section-number">S13</div>
+      <div class="eyebrow">Unit tests</div>
+      <h2 class="section-heading">Extract business logic from Airflow</h2>
+      <pre><code><span class="kw">def</span> <span class="fn">clean_orders_logic</span>(orders: list) -> list:
+    cleaned = [order <span class="kw">for</span> order <span class="kw">in</span> orders <span class="kw">if</span> order > 0]
+    <span class="kw">if not</span> cleaned:
+        <span class="kw">raise</span> ValueError(<span class="str">"No valid orders remain"</span>)
+    <span class="kw">return</span> cleaned
+
+<span class="kw">@task</span>
+<span class="kw">def</span> <span class="fn">clean_orders</span>(orders: list):
+    <span class="kw">return</span> clean_orders_logic(orders)</code></pre>
+      <div class="hibox">Plain functions can be tested without Airflow, a Scheduler, or metadata database.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s14">
+      <h2>Diagnostics and optimization</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s15">
+      <div class="section-number">S15</div>
+      <div class="eyebrow">Task-failure checklist</div>
+      <h2 class="section-heading">Start with the cheapest evidence</h2>
+      <ol class="bullets">
+        <li>Open the failed TaskInstance log.</li>
+        <li>Inspect Rendered Template for actual Jinja substitutions.</li>
+        <li>Check upstream states and distinguish <code>failed</code> from <code>upstream_failed</code>.</li>
+        <li>Verify Connections and Variables.</li>
+        <li>Check worker memory, CPU, and pod limits.</li>
+        <li>Reproduce with <code>airflow tasks test</code>.</li>
+      </ol>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s16">
+      <div class="section-number">S16</div>
+      <div class="eyebrow">Template exercise</div>
+      <h2 class="section-heading">Valid Python can still fail at runtime</h2>
+      <pre><code>BashOperator(
+    task_id=<span class="str">"print_date"</span>,
+    bash_command=<span class="str">"echo 'Processing {{ dss }}'"</span>,  <span class="com"># Typo.</span>
+)</code></pre>
+      <ul class="bullets"><li>Import tests pass because the file is valid Python.</li><li>Template rendering fails because <code>dss</code> is undefined.</li><li>Rendered Template exposes the invalid expression.</li></ul>
+      <div class="hibox">Fix: <code>{{ ds }}</code>. Reproduce with <code>airflow tasks test broken_template_dag print_date 2026-01-01</code>.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s17">
+      <div class="section-number">S17</div>
+      <div class="eyebrow">Performance</div>
+      <h2 class="section-heading">Keep parsing cheap and deterministic</h2>
+      <ul class="bullets">
+        <li>Do not query APIs, databases, or Variables at module level.</li>
+        <li>Use TaskGroup to organize a large graph.</li>
+        <li>Use Dynamic Task Mapping instead of hundreds of similar DAGs.</li>
+        <li>Use Pools to protect constrained external systems.</li>
+        <li>Measure Scheduler, worker, and metadata-database capacity separately.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s18">
+      <div class="section-number">S18</div>
+      <div class="eyebrow">TaskGroup</div>
+      <h2 class="section-heading">Organize one DAG without creating a sub-DAG</h2>
+      <pre><code><span class="kw">with</span> TaskGroup(group_id=<span class="str">"transform_group"</span>) <span class="kw">as</span> transform_group:
+    cleaned = clean(extract())
+    enrich(cleaned)
+
+transform_group >> load()</code></pre>
+      <ul class="bullets"><li>TaskGroup changes visual organization.</li><li>It does not create another DagRun.</li><li>It replaces the removed <code>SubDagOperator</code> pattern.</li></ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s19">
+      <div class="section-number">S19</div>
+      <div class="eyebrow">Pools</div>
+      <h2 class="section-heading">Protect a shared resource from concurrency</h2>
+      <pre><code>airflow pools set postgres_pool 5 \
+  <span class="str">"At most five production Postgres connections"</span>
+
+<span class="kw">@task</span>(pool=<span class="str">"postgres_pool"</span>)
+<span class="kw">def</span> <span class="fn">query_postgres</span>():
+    hook = PostgresHook(postgres_conn_id=<span class="str">"my_postgres"</span>)
+    <span class="kw">return</span> hook.get_first(<span class="str">"SELECT COUNT(*) FROM my_table"</span>)</code></pre>
+      <div class="hibox">TaskGroup changes presentation. A Pool changes actual concurrency for tasks assigned with <code>pool=</code>.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s20">
+      <div class="section-number">S20</div>
+      <div class="eyebrow">Pool exercise</div>
+      <h2 class="section-heading">Fifty tasks, five database slots</h2>
+      <div class="split2">
+        <div class="split-left"><h3>Without a Pool</h3><ul class="bullets"><li><code>.expand()</code> creates 50 tasks.</li><li>All try to query Postgres.</li><li>The database becomes the bottleneck.</li></ul></div>
+        <div class="split-right"><h3>Five-slot Pool</h3><ul class="bullets"><li>Five tasks run.</li><li>Forty-five remain queued.</li><li>The next task starts when a slot is released.</li></ul></div>
+      </div>
+      <div class="hibox">Set the Pool to one slot and observe mapped tasks execute sequentially.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s21">
+      <div class="section-number">S21</div>
+      <div class="eyebrow">Idempotency</div>
+      <h2 class="section-heading">Retries must not duplicate data</h2>
+      <pre><code><span class="com">-- Anti-pattern: every retry inserts another row.</span>
+INSERT INTO daily_totals (report_date, total) VALUES (%s, %s);
+
+<span class="com">-- Idempotent: one result per logical date.</span>
+INSERT INTO daily_totals (report_date, total) VALUES (%s, %s)
+ON CONFLICT (report_date)
+DO UPDATE SET total = EXCLUDED.total;</code></pre>
+      <div class="hibox">Airflow provides retries and backfills; the DAG author owns idempotent side effects.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s22">
+      <div class="section-number">S22</div>
+      <div class="eyebrow">Determinism</div>
+      <h2 class="section-heading">Use logical time for logical work</h2>
+      <pre><code><span class="com"># Changes on every physical retry.</span>
+report[<span class="str">"processed_at"</span>] = datetime.now().isoformat()
+
+<span class="com"># Stable for this logical run and its retries.</span>
+report[<span class="str">"processed_at"</span>] = context[<span class="str">"ds"</span>]</code></pre>
+      <ul class="bullets"><li>Retries happen at a different wall-clock time.</li><li>Backfills run historical intervals today.</li><li>Logical date keeps output tied to the data interval.</li></ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s23">
+      <h2>Monitoring, security, and scaling</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s24">
+      <div class="section-number">S24</div>
+      <div class="eyebrow">Observability</div>
+      <h2 class="section-heading">One signal is never enough</h2>
+      <ul class="bullets">
+        <li>Metrics through StatsD or Prometheus.</li>
+        <li>Failure and success callbacks for actionable notifications.</li>
+        <li>Distributed traces for cross-service latency.</li>
+        <li>Remote logs in S3, GCS, or Elasticsearch.</li>
+        <li>Duration and freshness alerts beyond task state.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s25">
+      <div class="section-number">S25</div>
+      <div class="eyebrow">Callbacks</div>
+      <h2 class="section-heading">Send context with every failure</h2>
+      <pre><code><span class="kw">def</span> <span class="fn">notify_on_failure</span>(context):
+    ti = context[<span class="str">"task_instance"</span>]
+    print(
+        <span class="str">f"Task {ti.dag_id}.{ti.task_id} failed. "</span>
+        <span class="str">f"Log: {ti.log_url}"</span>
+    )
+
+<span class="kw">@dag</span>(default_args={<span class="str">"on_failure_callback"</span>: notify_on_failure}, ...)
+<span class="kw">def</span> <span class="fn">monitored_pipeline</span>():
+    ...</code></pre>
+      <div class="hibox">A failure callback does not detect a task that succeeds too slowly.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s26">
+      <div class="section-number">S26</div>
+      <div class="eyebrow">Deadlines</div>
+      <h2 class="section-heading">Failure and lateness are different signals</h2>
+      <table>
+        <tr><th>Question</th><th>Signal</th></tr>
+        <tr><td>Did the task fail?</td><td><code>on_failure_callback</code></td></tr>
+        <tr><td>Did the work finish on time?</td><td>Deadline or duration alert</td></tr>
+        <tr><td>Is downstream data current?</td><td>Freshness alert</td></tr>
+      </table>
+      <div class="hibox">Airflow 3 removed legacy task-level SLAs. Use Deadline Alerts where supported or external metric-based alerts.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s27">
+      <div class="section-number">S27</div>
+      <div class="eyebrow">Security · RBAC</div>
+      <h2 class="section-heading">Apply least privilege per DAG</h2>
+      <pre><code><span class="kw">@dag</span>(
+    schedule=<span class="str">"@daily"</span>,
+    access_control={
+        <span class="str">"data_team"</span>: {<span class="str">"can_read"</span>, <span class="str">"can_edit"</span>, <span class="str">"can_delete"</span>},
+        <span class="str">"analytics_viewers"</span>: {<span class="str">"can_read"</span>},
+    },
+)
+<span class="kw">def</span> <span class="fn">restricted_dag</span>():
+    ...</code></pre>
+      <div class="hibox">Built-in roles and permission names depend on the Airflow version and authentication manager.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s28">
+      <div class="section-number">S28</div>
+      <div class="eyebrow">Security · Secrets</div>
+      <h2 class="section-heading">Externalize secrets without changing DAG code</h2>
+      <pre><code><span class="com">[secrets]</span>
+backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
+backend_kwargs = {
+  <span class="str">"connections_path"</span>: <span class="str">"airflow/connections"</span>,
+  <span class="str">"variables_path"</span>: <span class="str">"airflow/variables"</span>,
+  <span class="str">"url"</span>: <span class="str">"https://vault.example.com:8200"</span>
+}</code></pre>
+      <ul class="bullets"><li>The stable <code>conn_id</code> remains unchanged.</li><li>Vault replaces metadata-DB lookup.</li><li>AWS, GCP, and Azure provide equivalent backends.</li></ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s29">
+      <div class="section-number">S29</div>
+      <div class="eyebrow">Security</div>
+      <h2 class="section-heading">Fernet and Secrets Backends solve different problems</h2>
+      <div class="split2">
+        <div class="split-left"><h3>Fernet key</h3><ul class="bullets"><li>Encrypts sensitive fields.</li><li>Values remain in metadata DB.</li><li>Requires careful key rotation.</li></ul></div>
+        <div class="split-right"><h3>Secrets Backend</h3><ul class="bullets"><li>Keeps secrets outside Airflow DB.</li><li>Centralizes access policy and rotation.</li><li>Preserves existing connection IDs.</li></ul></div>
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s30">
+      <div class="section-number">S30</div>
+      <div class="eyebrow">Scaling</div>
+      <h2 class="section-heading">Concurrency has several independent controls</h2>
+      <table>
+        <tr><th>Control</th><th>Scope</th></tr>
+        <tr><td><code>parallelism</code></td><td>Task concurrency across the installation</td></tr>
+        <tr><td><code>max_active_runs</code></td><td>Concurrent DagRuns for one DAG</td></tr>
+        <tr><td><code>worker_concurrency</code></td><td>Tasks on one Celery worker</td></tr>
+        <tr><td>Pool</td><td>Assigned tasks using one named resource</td></tr>
+      </table>
+      <div class="hibox">A Pool is not a global limit; unassigned tasks are unaffected.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s31">
+      <div class="section-number">S31</div>
+      <div class="eyebrow">Scaling exercise</div>
+      <h2 class="section-heading">From 50 models to 500 plus ML</h2>
+      <ul class="bullets">
+        <li>Choose CeleryExecutor for a predictable distributed worker pool.</li>
+        <li>Choose KubernetesExecutor when per-task isolation matters.</li>
+        <li>Add Pools around databases and APIs before raising concurrency.</li>
+        <li>Review <code>parallelism</code>, <code>max_active_runs</code>, and worker resources.</li>
+        <li>Measure Scheduler and metadata-database capacity.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s32">
+      <div class="section-number">S32</div>
+      <div class="eyebrow">Three-day wrap-up</div>
+      <h2 class="section-heading">Production readiness checklist</h2>
+      <ul class="bullets">
+        <li>Build TaskFlow DAGs with Sensors, Hooks, mapping, and dbt.</li>
+        <li>Protect delivery with import, structure, and unit tests.</li>
+        <li>Make retries safe through idempotency and logical time.</li>
+        <li>Define failure, duration, and freshness alerts.</li>
+        <li>Protect credentials, external systems, and platform capacity.</li>
+      </ul>
+      <div class="hibox"><strong>Next step:</strong> apply the checklist to one real pipeline and document its operational limits.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s33">
+      <h2>Day 3 complete</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+  </div>
+
+  <div class="progress" id="progress"><div class="progress-bar" id="progress-bar"></div></div>
+  <div class="controls"><span class="ctr" id="slide-counter">1 / 33</span><div class="dots" id="dots"></div></div>
+  <script src="../shared/js/deck.js"></script>
+</body>
+</html>

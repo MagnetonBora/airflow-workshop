@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apache Airflow — Day 2</title>
+  <link rel="stylesheet" href="../shared/css/main.css">
+</head>
+<body>
+  <div class="deck">
+
+    <div class="slide s-section s-title" id="s1">
+      <div class="title-left">
+        <div class="eyebrow">Day 2 · Apache Airflow</div>
+        <h1>DAGs, dbt,<br />and integrations</h1>
+        <div class="subtitle">Advanced orchestration, dependencies, and production patterns</div>
+      </div>
+      <div class="title-visual">
+        <div class="title-image-placeholder">
+          <img src="../shared/images/airflow-logo.png" alt="Apache Airflow logo" class="title-airflow-logo">
+        </div>
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s2">
+      <div class="section-number">S2</div>
+      <div class="eyebrow">Overview</div>
+      <h2 class="section-heading">What we're building today</h2>
+      <ul class="bullets">
+        <li>Schedule-aware dependencies with <code>trigger_rule</code> and <code>catchup</code>.</li>
+        <li>Scalable runtime fan-out with dynamic task mapping.</li>
+        <li>Safe task communication through XCom.</li>
+        <li>Airflow and dbt integration at several levels.</li>
+        <li>Production-safe connections, configuration, and testing.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s3">
+      <h2>Dependencies and DAG Scheduling</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s4">
+      <div class="section-number">S4</div>
+      <div class="eyebrow">Dependencies and scheduling</div>
+      <h2 class="section-heading">Which upstream outcome starts a task?</h2>
+      <ul class="bullets">
+        <li><code>all_success</code> is the default: every upstream task must succeed.</li>
+        <li><code>all_failed</code> is useful for alerts that run only after failure.</li>
+        <li><code>one_success</code> and <code>one_failed</code> react to any matching branch.</li>
+        <li><code>none_failed</code> allows successful and skipped upstream tasks.</li>
+        <li><code>all_done</code> is useful for unconditional cleanup and final notifications.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s5">
+      <div class="section-number">S5</div>
+      <div class="eyebrow">Trigger rules</div>
+      <h2 class="section-heading">Failure can activate another branch</h2>
+      <pre><code><span class="kw">@task</span>
+<span class="kw">def</span> <span class="fn">extract</span>():
+    <span class="kw">raise</span> ValueError(<span class="str">"Source is unavailable"</span>)
+
+<span class="kw">@task</span>
+<span class="kw">def</span> <span class="fn">transform</span>():
+    print(<span class="str">"Runs only after success"</span>)
+
+<span class="kw">@task</span>(trigger_rule=<span class="str">"all_failed"</span>)
+<span class="kw">def</span> <span class="fn">send_alert</span>():
+    print(<span class="str">"Runs because extract failed"</span>)
+
+extract_task = extract()
+extract_task >> transform()
+extract_task >> send_alert()</code></pre>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s6">
+      <div class="section-number">S6</div>
+      <div class="eyebrow">Trigger rules</div>
+      <h2 class="section-heading">How states propagate</h2>
+      <div class="diagram-shell">
+        <svg class="diagram-svg" viewBox="0 0 980 280" role="img" aria-label="Trigger rule branches after upstream failure">
+          <defs><marker id="arr-s5" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#1a6ba7"></path></marker></defs>
+          <rect x="60" y="106" width="200" height="66" rx="8" fill="#fff0ef" stroke="#cf4d4d" stroke-width="2"></rect>
+          <text x="160" y="132" text-anchor="middle" class="svg-text">extract</text><text x="160" y="155" text-anchor="middle" class="svg-text">FAILED</text>
+          <rect x="610" y="35" width="250" height="70" rx="8" fill="#fff4ea" stroke="#d17b00" stroke-width="2"></rect>
+          <text x="735" y="63" text-anchor="middle" class="svg-text">transform</text><text x="735" y="87" text-anchor="middle" class="svg-text">upstream_failed</text>
+          <rect x="610" y="178" width="250" height="70" rx="8" fill="#edf8f2" stroke="#20804d" stroke-width="2"></rect>
+          <text x="735" y="206" text-anchor="middle" class="svg-text">send_alert</text><text x="735" y="230" text-anchor="middle" class="svg-text">SUCCESS</text>
+          <line x1="260" y1="125" x2="610" y2="70" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s5)"></line>
+          <line x1="260" y1="153" x2="610" y2="213" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s5)"></line>
+          <text x="430" y="84" text-anchor="middle" class="svg-text">all_success</text><text x="430" y="208" text-anchor="middle" class="svg-text">all_failed</text>
+        </svg>
+      </div>
+      <div class="hibox"><code>upstream_failed</code> means the task was never attempted because its dependency rule was not satisfied.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s7">
+      <div class="section-number">S7</div>
+      <div class="eyebrow">Trigger rules</div>
+      <h2 class="section-heading">Quick reference</h2>
+      <table>
+        <tr><th>Rule</th><th>Starts when</th><th>Typical use</th></tr>
+        <tr><td><code>all_success</code></td><td>Every upstream succeeds</td><td>Normal processing</td></tr>
+        <tr><td><code>all_failed</code></td><td>Every upstream fails</td><td>Failure alert</td></tr>
+        <tr><td><code>one_success</code></td><td>At least one succeeds</td><td>Branch join</td></tr>
+        <tr><td><code>none_failed</code></td><td>No upstream failed</td><td>Join with skipped branches</td></tr>
+        <tr><td><code>all_done</code></td><td>All upstream finishes</td><td>Cleanup</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s8">
+      <h2>Data Interval</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s9">
+      <div class="section-number">S9</div>
+      <div class="eyebrow">Data interval</div>
+      <h2 class="section-heading">A run processes a completed period</h2>
+      <ul class="bullets">
+        <li>The DagRun for January 1 starts at the beginning of January 2.</li>
+        <li>Airflow waits until the whole interval is complete.</li>
+        <li><code>logical_date</code> labels the data period, not the wall-clock start time.</li>
+        <li>This behavior is intentional for batch processing.</li>
+      </ul>
+      <div class="hibox"><code>logical_date = 2026-01-01</code> means “process the data for January 1.”</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s10">
+      <div class="section-number">S10</div>
+      <div class="eyebrow">Data interval</div>
+      <h2 class="section-heading">When does the DagRun execute?</h2>
+      <div class="diagram-shell">
+        <svg class="diagram-svg" viewBox="0 0 1050 280" role="img" aria-label="Daily data interval timeline">
+          <defs><marker id="arr-s8" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#1a6ba7"></path></marker></defs>
+          <rect x="40" y="90" width="220" height="76" rx="8" fill="#e0f0fe" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="390" y="90" width="220" height="76" rx="8" fill="#e0f0fe" stroke="#1a6ba7" stroke-width="2"></rect>
+          <rect x="760" y="90" width="250" height="76" rx="8" fill="#edf8f2" stroke="#20804d" stroke-width="2"></rect>
+          <text x="150" y="120" text-anchor="middle" class="svg-text">Interval starts</text><text x="150" y="145" text-anchor="middle" class="svg-text">Jan 1 · 00:00</text>
+          <text x="500" y="120" text-anchor="middle" class="svg-text">Interval ends</text><text x="500" y="145" text-anchor="middle" class="svg-text">Jan 2 · 00:00</text>
+          <text x="885" y="117" text-anchor="middle" class="svg-text">DagRun starts</text><text x="885" y="142" text-anchor="middle" class="svg-text">logical_date: Jan 1</text>
+          <line x1="260" y1="128" x2="390" y2="128" stroke="#1a6ba7" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arr-s8)"></line>
+          <line x1="610" y1="128" x2="760" y2="128" stroke="#1a6ba7" stroke-width="2" marker-end="url(#arr-s8)"></line>
+          <text x="325" y="75" text-anchor="middle" class="svg-text">data accumulates</text>
+          <text x="685" y="75" text-anchor="middle" class="svg-text">period complete</text>
+        </svg>
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s11">
+      <div class="section-number">S11</div>
+      <div class="eyebrow">Catchup</div>
+      <h2 class="section-heading">The default changed in Airflow 3</h2>
+      <table>
+        <tr><th>Version</th><th>Default</th><th>When an old DAG is enabled</th></tr>
+        <tr><td>Airflow 2.x</td><td><code>catchup=True</code></td><td>Historical intervals may all be created</td></tr>
+        <tr><td>Airflow 3.x</td><td><code>catchup=False</code></td><td>Only the latest completed interval is created</td></tr>
+      </table>
+      <ul class="bullets">
+        <li>Use explicit <code>catchup=True</code> when historical processing is intended.</li>
+        <li>Use backfill when you need a controlled date range.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s12">
+      <div class="section-number">S12</div>
+      <div class="eyebrow">Catchup exercise</div>
+      <h2 class="section-heading">What happens when this DAG is enabled?</h2>
+      <pre><code><span class="kw">@dag</span>(
+    schedule=<span class="str">"@daily"</span>,
+    start_date=datetime(2026, 1, 1),
+    <span class="com"># catchup is omitted</span>
+)
+<span class="kw">def</span> <span class="fn">catchup_demo</span>():
+    <span class="kw">@task</span>
+    <span class="kw">def</span> <span class="fn">run</span>():
+        print(<span class="str">"Running"</span>)
+    run()</code></pre>
+      <div class="hibox">Airflow 3 creates one run for the latest completed interval. Add <code>catchup=True</code> to request the missed history.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s13">
+      <h2>Dynamic DAG Generation</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s14">
+      <div class="section-number">S14</div>
+      <div class="eyebrow">Dynamic DAG generation</div>
+      <h2 class="section-heading">Anti-pattern: module-level loops</h2>
+      <ul class="bullets">
+        <li>The DAG Processor executes every DAG file in full during each scan.</li>
+        <li>A top-level loop runs again on every parse.</li>
+        <li>More entities mean more DAG objects and linearly increasing parse time.</li>
+        <li>The code works, but it adds shared scheduler overhead.</li>
+      </ul>
+      <pre><code><span class="kw">for</span> table <span class="kw">in</span> TABLES:  <span class="com"># Runs during every parse.</span>
+    dag_id = <span class="str">f"etl_{table}"</span>
+    dag = DAG(dag_id=dag_id, ...)
+    globals()[dag_id] = dag</code></pre>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s15">
+      <div class="section-number">S15</div>
+      <div class="eyebrow">Dynamic task mapping</div>
+      <h2 class="section-heading">Preferred: map work at runtime</h2>
+      <pre><code><span class="kw">@dag</span>(schedule=<span class="str">"@daily"</span>, start_date=datetime(2026, 1, 1), catchup=<span class="kw">False</span>)
+<span class="kw">def</span> <span class="fn">etl_dynamic</span>():
+
+    <span class="kw">@task</span>
+    <span class="kw">def</span> <span class="fn">get_tables</span>():
+        <span class="kw">return</span> [<span class="str">"orders"</span>, <span class="str">"customers"</span>, <span class="str">"products"</span>]
+
+    <span class="kw">@task</span>
+    <span class="kw">def</span> <span class="fn">process</span>(table_name: str):
+        print(<span class="str">f"Processing {table_name}"</span>)
+
+    process.expand(table_name=get_tables())</code></pre>
+      <div class="hibox">The Scheduler parses one DAG; mapped TaskInstances are created only after <code>get_tables</code> runs.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s16">
+      <div class="section-number">S16</div>
+      <div class="eyebrow">Dynamic DAG generation</div>
+      <h2 class="section-heading">Parsing time is the key difference</h2>
+      <div class="split2">
+        <div class="split-left">
+          <h3>Top-level loop</h3>
+          <ul class="bullets"><li>List computed during parsing.</li><li>Multiple DAGs in the DAG list.</li><li>Cost repeats on every scan.</li></ul>
+        </div>
+        <div class="split-right">
+          <h3><code>.expand()</code></h3>
+          <ul class="bullets"><li>List computed during execution.</li><li>One DAG in the DAG list.</li><li>Mapped indexes appear in Grid.</li></ul>
+        </div>
+      </div>
+      <div class="hibox">The parameter passed to <code>.expand(table_name=...)</code> must match the mapped task's function argument exactly.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s17">
+      <div class="section-number">S17</div>
+      <div class="eyebrow">DAG factories</div>
+      <h2 class="section-heading">External configuration is a compromise</h2>
+      <ul class="bullets">
+        <li>A factory can read YAML, JSON, or database configuration.</li>
+        <li>Configuration is separated from code and easier to review.</li>
+        <li>Reading still happens while the DAG file is parsed.</li>
+        <li>Use it when the entity list changes infrequently.</li>
+      </ul>
+      <div class="hibox"><strong>Exercise:</strong> rewrite a top-level loop with <code>.expand()</code> and compare the DAG list with Grid view.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s18">
+      <h2>XCom</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s19">
+      <div class="section-number">S19</div>
+      <div class="eyebrow">XCom</div>
+      <h2 class="section-heading">Classic explicit push and pull</h2>
+      <pre><code><span class="kw">def</span> <span class="fn">extract_classic</span>(**context):
+    context[<span class="str">"ti"</span>].xcom_push(key=<span class="str">"raw_value"</span>, value=42)
+
+<span class="kw">def</span> <span class="fn">transform_classic</span>(**context):
+    value = context[<span class="str">"ti"</span>].xcom_pull(
+        task_ids=<span class="str">"extract_classic"</span>,
+        key=<span class="str">"raw_value"</span>,
+    )
+    print(value * 2)</code></pre>
+      <ul class="bullets">
+        <li><code>task_ids</code> identifies the source task.</li>
+        <li><code>key</code> identifies the value.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s20">
+      <div class="section-number">S20</div>
+      <div class="eyebrow">XCom</div>
+      <h2 class="section-heading">Multiple named outputs</h2>
+      <pre><code><span class="kw">@task</span>(multiple_outputs=<span class="kw">True</span>)
+<span class="kw">def</span> <span class="fn">extract_multi</span>():
+    <span class="kw">return</span> {<span class="str">"raw_value"</span>: 42, <span class="str">"source"</span>: <span class="str">"api"</span>}
+
+result = extract_multi()
+use_value(result[<span class="str">"raw_value"</span>])
+use_source(result[<span class="str">"source"</span>])</code></pre>
+      <div class="hibox">Each dictionary key becomes an independent XCom row visible in Task Instance Details.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s21">
+      <div class="section-number">S21</div>
+      <div class="eyebrow">XCom debugging</div>
+      <h2 class="section-heading">Inspect values before reading logs</h2>
+      <ul class="bullets">
+        <li>Open Task Instance Details → XCom.</li>
+        <li>Verify the source <code>task_id</code>, key, value, and data type.</li>
+        <li>A missing key returns <code>None</code>; it does not raise an exception.</li>
+        <li>For medium-sized values, use a custom backend such as S3.</li>
+      </ul>
+      <pre><code><span class="com">[core]</span>
+xcom_backend = my_project.xcom_backends.S3XComBackend</code></pre>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s22">
+      <div class="section-number">S22</div>
+      <div class="eyebrow">XCom exercise</div>
+      <h2 class="section-heading">Push and pull two independent keys</h2>
+      <ul class="bullets">
+        <li>Push <code>raw_value = 42</code>.</li>
+        <li>Push <code>source = "api"</code>.</li>
+        <li>Pull each key separately in the downstream task.</li>
+        <li>Print: <code>Value 42 was received from api</code>.</li>
+      </ul>
+      <div class="hibox">Every unique key creates a separate XCom record for that TaskInstance.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s23">
+      <div class="section-number">S23</div>
+      <div class="eyebrow">XCom exercise</div>
+      <h2 class="section-heading">Diagnose the silent <code>None</code></h2>
+      <pre><code>ti.xcom_push(key=<span class="str">"result"</span>, value=42)
+
+value = ti.xcom_pull(
+    task_ids=<span class="str">"extract_buggy"</span>,
+    key=<span class="str">"raw_value"</span>,  <span class="com"># Wrong key.</span>
+)
+print(value)  <span class="com"># None</span></code></pre>
+      <div class="hibox">Fix the key mismatch and assert required values explicitly when <code>None</code> is not valid.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s24">
+      <h2>Airflow + dbt</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s25">
+      <div class="section-number">S25</div>
+      <div class="eyebrow">Integration with dbt</div>
+      <h2 class="section-heading">dbt needs orchestration context</h2>
+      <ul class="bullets">
+        <li>dbt excels at transformation but does not orchestrate extraction and loading.</li>
+        <li>Airflow starts dbt after data is actually ready, not after a fixed delay.</li>
+        <li>One DAG provides source-to-consumer observability.</li>
+        <li>Retries can target the failed step instead of the whole pipeline.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s26">
+      <div class="section-number">S26</div>
+      <div class="eyebrow">Airflow + dbt</div>
+      <h2 class="section-heading">What orchestration adds</h2>
+      <table>
+        <tr><th>Capability</th><th>dbt only</th><th>Airflow + dbt</th></tr>
+        <tr><td>Start after real readiness</td><td>Time-based</td><td>Sensor or Asset</td></tr>
+        <tr><td>End-to-end visibility</td><td>Transform only</td><td>Full pipeline</td></tr>
+        <tr><td>Retry granularity</td><td>Whole job</td><td>Specific task/model</td></tr>
+        <tr><td>Downstream actions</td><td>Separate</td><td>Same graph</td></tr>
+      </table>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s27">
+      <div class="section-number">S27</div>
+      <div class="eyebrow">dbt integration · Level 1</div>
+      <h2 class="section-heading">BashOperator: simple but opaque</h2>
+      <pre><code>dbt_run = BashOperator(
+    task_id=<span class="str">"dbt_run"</span>,
+    bash_command=<span class="str">"cd /opt/dbt_project && dbt run"</span>,
+)</code></pre>
+      <ul class="bullets">
+        <li>Fastest integration to implement.</li>
+        <li>The entire dbt run appears as one task.</li>
+        <li>A failure requires reading dbt logs to identify the model.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s28">
+      <div class="section-number">S28</div>
+      <div class="eyebrow">dbt integration · Level 2</div>
+      <h2 class="section-heading">Wait for real data readiness</h2>
+      <pre><code>wait_for_load = SqlSensor(
+    task_id=<span class="str">"wait_for_load"</span>,
+    conn_id=<span class="str">"warehouse"</span>,
+    sql=<span class="str">"""
+        SELECT 1 FROM load_status
+        WHERE load_date = '{{ ds }}' AND status = 'complete'
+    """</span>,
+    deferrable=<span class="kw">True</span>,
+)
+
+wait_for_load >> dbt_run</code></pre>
+      <div class="hibox">The fixed “just in case” delay disappears; dbt starts when the source is actually complete.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s29">
+      <div class="section-number">S29</div>
+      <div class="eyebrow">dbt integration · Level 3</div>
+      <h2 class="section-heading">Cosmos creates one task per model</h2>
+      <pre><code><span class="kw">from</span> cosmos <span class="kw">import</span> DbtTaskGroup, ProjectConfig, ProfileConfig
+
+dbt_transform = DbtTaskGroup(
+    group_id=<span class="str">"dbt_transform"</span>,
+    project_config=ProjectConfig(<span class="str">"/opt/dbt_project"</span>),
+    profile_config=ProfileConfig(
+        profile_name=<span class="str">"my_profile"</span>,
+        target_name=<span class="str">"prod"</span>,
+    ),
+)</code></pre>
+      <ul class="bullets"><li>Failed models are visible directly in Grid.</li><li><code>select</code>/<code>exclude</code> controls rendered models.</li><li>A CI-generated manifest reduces parse time.</li></ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s30">
+      <div class="section-number">S30</div>
+      <div class="eyebrow">dbt integration</div>
+      <h2 class="section-heading">Granularity changes the debugging experience</h2>
+      <div class="split2">
+        <div class="split-left">
+          <h3>BashOperator</h3>
+          <div class="hibox"><code>dbt_run</code> → FAILED</div>
+          <ul class="bullets"><li>One task for the whole project.</li><li>Logs answer which model failed.</li></ul>
+        </div>
+        <div class="split-right">
+          <h3>Cosmos</h3>
+          <div class="hibox"><code>stg_orders</code> → <code>fct_orders</code> → <strong>FAILED model</strong></div>
+          <ul class="bullets"><li>One task per model.</li><li>The failed node is immediately visible.</li></ul>
+        </div>
+      </div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s31">
+      <div class="section-number">S31</div>
+      <div class="eyebrow">dbt integration · Level 4</div>
+      <h2 class="section-heading">Trigger a managed dbt Cloud job</h2>
+      <pre><code>run_dbt_cloud = DbtCloudRunJobOperator(
+    task_id=<span class="str">"run_dbt_cloud"</span>,
+    dbt_cloud_conn_id=<span class="str">"dbt_cloud_default"</span>,
+    job_id=12345,
+    wait_for_termination=<span class="kw">True</span>,
+    check_interval=30,
+)</code></pre>
+      <ul class="bullets"><li>dbt Cloud owns model orchestration.</li><li>Airflow sees job-level status.</li><li>Useful when a separate dbt team owns the project.</li></ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s32">
+      <div class="section-number">S32</div>
+      <div class="eyebrow">dbt integration · Level 5</div>
+      <h2 class="section-heading">Trigger downstream work from an Asset</h2>
+      <pre><code>fct_orders = Asset(<span class="str">"postgres://warehouse/public/fct_orders"</span>)
+
+<span class="kw">@dag</span>(schedule=[fct_orders], catchup=<span class="kw">False</span>)
+<span class="kw">def</span> <span class="fn">refresh_bi</span>():
+    <span class="kw">@task</span>
+    <span class="kw">def</span> <span class="fn">refresh_dashboard</span>():
+        print(<span class="str">"Refresh after the table changes"</span>)
+    refresh_dashboard()</code></pre>
+      <div class="hibox">The consumer runs because data changed, not because enough time probably passed.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s33">
+      <div class="section-number">S33</div>
+      <div class="eyebrow">Data quality gate</div>
+      <h2 class="section-heading">Never refresh BI before tests pass</h2>
+      <ul class="bullets">
+        <li>Render dbt tests as part of the Airflow graph.</li>
+        <li>Make BI refresh depend on successful models and tests.</li>
+        <li>Stop consumers when data quality fails.</li>
+        <li>Notify with the exact failed model and Airflow log URL.</li>
+      </ul>
+      <pre><code>dbt_transform >> refresh_bi_dashboard() >> notify_slack()</code></pre>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s34">
+      <div class="section-number">S34</div>
+      <div class="eyebrow">dbt exercise</div>
+      <h2 class="section-heading">Evolve from cron to orchestration</h2>
+      <ol class="bullets">
+        <li>Start with one scheduled <code>BashOperator</code>.</li>
+        <li>Add a deferrable <code>SqlSensor</code> for source readiness.</li>
+        <li>Replace the shell task with a Cosmos task group.</li>
+        <li>Add a deliberately failing model and compare Grid views.</li>
+        <li>Send an alert containing task ID and log URL.</li>
+      </ol>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s35">
+      <h2>Connecting to external systems</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s36">
+      <div class="section-number">S36</div>
+      <div class="eyebrow">Connections</div>
+      <h2 class="section-heading">Centralize access to external systems</h2>
+      <ul class="bullets">
+        <li>A Connection stores host, login, password, port, and extras.</li>
+        <li>DAG code references a stable <code>conn_id</code>.</li>
+        <li>Credentials stay out of source code.</li>
+        <li>Create connections in UI, CLI, environment variables, or a secrets backend.</li>
+      </ul>
+      <pre><code>hook = PostgresHook(postgres_conn_id=<span class="str">"my_postgres"</span>)
+count = hook.get_first(<span class="str">"SELECT COUNT(*) FROM orders"</span>)</code></pre>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s37">
+      <div class="section-number">S37</div>
+      <div class="eyebrow">Connections exercise</div>
+      <h2 class="section-heading">Create a Postgres connection</h2>
+      <table>
+        <tr><th>Field</th><th>Value</th></tr>
+        <tr><td>Connection ID</td><td><code>my_postgres</code></td></tr>
+        <tr><td>Type</td><td>Postgres</td></tr>
+        <tr><td>Host</td><td><code>postgres</code></td></tr>
+        <tr><td>Database / schema</td><td><code>airflow</code></td></tr>
+        <tr><td>Login / password</td><td><code>airflow</code> / <code>airflow</code></td></tr>
+        <tr><td>Port</td><td><code>5432</code></td></tr>
+      </table>
+      <div class="hibox">Test the task with <code>airflow tasks test</code>, where the Airflow connection environment exists.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s38">
+      <div class="section-number">S38</div>
+      <div class="eyebrow">Variables</div>
+      <h2 class="section-heading">Runtime configuration, not credentials</h2>
+      <ul class="bullets">
+        <li>Connections answer “where and how do I connect?”</li>
+        <li>Variables hold feature flags, thresholds, and target paths.</li>
+        <li>Read Variables inside task bodies, not at module level.</li>
+        <li>Use <code>deserialize_json=True</code> for structured configuration.</li>
+      </ul>
+      <pre><code>target_bucket = Variable.get(<span class="str">"target_bucket"</span>)</code></pre>
+      <div class="hibox">A module-level <code>Variable.get()</code> creates an external lookup during every DAG parse.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s39">
+      <h2>Task Failures and Return Values</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s40">
+      <div class="section-number">S40</div>
+      <div class="eyebrow">Task failures</div>
+      <h2 class="section-heading">Make HTTP failures explicit</h2>
+      <pre><code><span class="kw">@task</span>
+<span class="kw">def</span> <span class="fn">fetch_api_data</span>():
+    response = requests.get(<span class="str">"https://api.example.com/data"</span>)
+    response.raise_for_status()  <span class="com"># 404/500 → HTTPError</span>
+    <span class="kw">return</span> response.json()</code></pre>
+      <ul class="bullets">
+        <li><code>requests.get()</code> returns a Response even when the server answers with 404 or 500.</li>
+        <li><code>raise_for_status()</code> converts that status into an <code>HTTPError</code>.</li>
+        <li>Airflow marks the task <code>failed</code> only when the exception escapes the task function.</li>
+      </ul>
+      <div class="hibox">Airflow marks a task failed only when an exception escapes the task function. Explicit validation is the task author's responsibility.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s41">
+      <div class="section-number">S41</div>
+      <div class="eyebrow">TaskFlow return values</div>
+      <h2 class="section-heading">Return values become XCom</h2>
+      <pre><code><span class="kw">@task</span>
+<span class="kw">def</span> <span class="fn">fetch_api_data</span>():
+    ...
+    <span class="kw">return</span> response.json()  <span class="com"># Stored as key="return_value"</span>
+
+<span class="kw">@task</span>
+<span class="kw">def</span> <span class="fn">process_data</span>(data):
+    print(data)
+
+process_data(fetch_api_data())  <span class="com"># Equivalent to an xcom_pull</span></code></pre>
+      <ul class="bullets">
+        <li>TaskFlow serializes the returned value and writes it to the metadata database.</li>
+        <li>The value must be serializable and is visible in Task Instance Details → XCom.</li>
+        <li>A downstream argument reads the persistent XCom record; this is not an in-memory function call.</li>
+      </ul>
+      <div class="hibox">TaskFlow hides the explicit <code>xcom_push</code>/<code>xcom_pull</code> calls, but the metadata-database write still happens.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s42">
+      <div class="section-number">S42</div>
+      <div class="eyebrow">XCom anti-pattern</div>
+      <h2 class="section-heading">DataFrames do not belong in metadata DB</h2>
+      <div class="split2">
+        <div class="split-left"><h3>Anti-pattern</h3><pre><code><span class="kw">return</span> dataframe</code></pre><ul class="bullets"><li>Large serialized blob.</li><li>Slow UI and Scheduler.</li><li>Shared DB impact.</li></ul></div>
+        <div class="split-right"><h3>Preferred</h3><pre><code>dataframe.to_parquet(path)
+<span class="kw">return</span> path</code></pre><ul class="bullets"><li>Small XCom string.</li><li>Data lives in object storage.</li><li>Workers read the same URI.</li></ul></div>
+      </div>
+      <div class="hibox">Use S3 or GCS in production; local <code>/tmp</code> is not shared between workers.</div>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s43">
+      <h2>Best Practices</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-code" id="s44">
+      <div class="section-number">S44</div>
+      <div class="eyebrow">Testing DAGs</div>
+      <h2 class="section-heading">Catch import errors before deployment</h2>
+      <pre><code><span class="kw">from</span> airflow.models <span class="kw">import</span> DagBag
+
+<span class="kw">def</span> <span class="fn">test_no_import_errors</span>():
+    dag_bag = DagBag()
+    <span class="kw">assert</span> len(dag_bag.import_errors) == 0</code></pre>
+      <ul class="bullets">
+        <li><code>DagBag</code> imports DAGs similarly to the DAG Processor.</li>
+        <li>Run this check in CI before merging.</li>
+        <li>Broken dependencies and syntax errors fail fast.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-section" id="s45">
+      <div class="section-number">S45</div>
+      <div class="eyebrow">Best practices</div>
+      <h2 class="section-heading">Production checklist</h2>
+      <ul class="bullets">
+        <li>Keep parse-time code deterministic and lightweight.</li>
+        <li>Use Connections and a secrets backend for credentials.</li>
+        <li>Pass references through XCom, not large datasets.</li>
+        <li>Prefer deferrable waiting and runtime task mapping.</li>
+        <li>Test DAG imports and failure paths in CI.</li>
+      </ul>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+    <div class="slide s-intro" id="s46">
+      <h2>Day 2 complete</h2>
+      <div class="slide-logo">Apache Airflow · Workshop</div>
+    </div>
+
+  </div>
+
+  <div class="progress" id="progress"><div class="progress-bar" id="progress-bar"></div></div>
+  <div class="controls">
+    <span class="ctr" id="slide-counter">1 / 46</span>
+    <div class="dots" id="dots"></div>
+  </div>
+
+  <script src="../shared/js/deck.js"></script>
+</body>
+</html>
