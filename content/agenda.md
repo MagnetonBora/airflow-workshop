@@ -43,7 +43,7 @@ title: Agenda
 
 **Break: 10 minutes**
 
-### Part 5: Writing DAGs, Part 1
+### Part 5: Developing DAGs
 
 **14:30–16:00 | 1.5 hours**
 
@@ -60,7 +60,7 @@ title: Agenda
 
 ## Day 2: DAGs, dbt, Integrations
 
-### Part 1: Writing DAGs — Continuation
+### Part 1: Developing DAGs — Continuation
 
 **09:00–10:00 | 1 hour**
 
