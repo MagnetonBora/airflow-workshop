@@ -1,5 +1,7 @@
 # Airflow Workshop
 
+Welcome to this three-day hands-on workshop on Apache Airflow. The course progresses from core orchestration concepts and DAG development to dbt integration, testing, observability, security, and production operations.
+
 [[agenda|Agenda]]
 
 <a href="/presentation/" data-router-ignore>Presentation</a>
