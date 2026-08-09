@@ -248,6 +248,18 @@ a {
       grid-area: grid-sidebar-right;
       margin-right: 0;
       flex-direction: column;
+      & > .toc {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: hidden;
+
+        & > .toc-content.overflow {
+          flex: 1 1 auto;
+          min-height: 0;
+          max-height: none;
+          overflow-y: auto;
+        }
+      }
       @media all and ($mobile) {
         margin-left: inherit;
         margin-right: inherit;
