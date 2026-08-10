@@ -742,7 +742,7 @@ wait_for_file = FileSensor(
 
 <span class="kw">@task</span>
 <span class="kw">def</span> <span class="fn">send_report</span>():
-    channel = Variable.get(<span class="str">"alerts_channel"</span>, default_var=<span class="str">"#data-alerts"</span>)
+    channel = Variable.get(<span class="str">"alerts_channel"</span>, default=<span class="str">"#data-alerts"</span>)
     <span class="kw">return</span> channel</code></pre>
       <div class="slide-logo">Apache Airflow · Workshop</div>
     </div>
