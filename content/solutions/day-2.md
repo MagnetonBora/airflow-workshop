@@ -166,44 +166,83 @@ def notify_customer(**context):
 
 # 5. Airflow and dbt
 
-**Description.** Evolve a cron-based `dbt run` into a readiness-aware, model-granular, event-triggered pipeline.
+**Description.** Evolve a cron-based `dbt run` into a readiness-aware, model-granular, event-triggered pipeline. Unlike the previous three "isolated snippet" attempts, this is written as one connected pipeline: each step's output is the input the next step actually depends on, not a disconnected fragment.
 
 **Solution.**
 
-*Step 1 — real readiness instead of a fixed time:*
+*Step 1 and Step 2, in the same DAG — readiness gate, then per-model granularity:*
 
 ```python
-from airflow.providers.postgres.sensors.sql import SqlSensor
-
-wait_for_load = SqlSensor(
-    task_id="wait_for_load_complete",
-    conn_id="warehouse_pg",
-    sql="SELECT 1 FROM load_status WHERE status = 'complete' AND load_date = '{{ ds }}'",
-    deferrable=True,
-)
-wait_for_load >> dbt_run
-```
-Solves: the load can finish early or late; the pipeline now starts exactly when the data is actually ready instead of guessing a safety margin.
-
-*Step 2 — per-model granularity with Cosmos:*
-
-```python
+# dags/dbt_pricing_pipeline.py
+from pathlib import Path
+from airflow.sdk import dag, task
+from airflow.providers.common.sql.sensors.sql import SqlSensor
 from cosmos import DbtTaskGroup, ProjectConfig, ProfileConfig
+from datetime import datetime
 
-dbt_transform = DbtTaskGroup(
-    group_id="dbt_transform",
-    project_config=ProjectConfig("/opt/dbt_project"),
-    profile_config=ProfileConfig(profile_name="warehouse_profile", target_name="prod"),
+DBT_PROJECT_PATH = Path("/opt/airflow/dbt")
+
+profile_config = ProfileConfig(
+    profile_name="edu_retail",
+    target_name="dev",
+    profiles_yml_filepath=DBT_PROJECT_PATH / "profiles.yml",
 )
-```
-Solves: a single failing model no longer hides the status of every other model behind one opaque `dbt_run` task; each model becomes its own task and only the broken one turns red.
 
-*Step 3 — Asset-driven downstream trigger:*
+project_config = ProjectConfig(dbt_project_path=DBT_PROJECT_PATH)
+
+@dag(
+    schedule="@daily",
+    start_date=datetime(2026, 1, 1),
+    catchup=False,
+    max_active_tasks=1,
+)
+def dbt_pricing_pipeline():
+    wait_for_load = SqlSensor(
+        task_id="wait_for_load_complete",
+        conn_id="warehouse_pg",
+        sql="SELECT 1 FROM load_status WHERE status = 'complete' AND load_date = '{{ ds }}'",
+        mode="reschedule",
+    )
+
+    dbt_transform = DbtTaskGroup(
+        group_id="dbt_transform",
+        project_config=project_config,
+        profile_config=profile_config,
+    )
+
+    wait_for_load >> dbt_transform
+
+dbt_pricing_pipeline()
+```
+
+> **Dependency.** Running this DAG requires the `astronomer-cosmos` package to be installed in the Airflow environment:
+> ```dotenv
+> astronomer-cosmos
+> ```
+> Without it, `from cosmos import ...` fails at import time — exactly the kind of import error the `test_no_import_errors` test in Section 8 is designed to catch.
+
+**A couple of words about Cosmos.** Cosmos is a provider package that turns an existing dbt project into native Airflow tasks, without wrapping the whole thing in one opaque `BashOperator` call. `DbtTaskGroup` parses your dbt project's manifest and builds one Airflow task per model (respecting the dbt DAG's own `ref()`/dependency graph), so a failure in one model shows up as one red task instead of hiding inside a single `dbt run` shell command. It also — by default — publishes an Airflow Asset for each model's output table, which is what makes Step 3 below possible without any extra wiring on your part.
+
+**A couple of words about `ds`.** `{{ ds }}` is one of Airflow's built-in Jinja template variables, rendered at task execution time as the DAG run's logical date in `YYYY-MM-DD` format (e.g. `2026-03-09`). It is tied to the *logical* interval the run represents, not the physical wall-clock time the task actually executes — the same distinction covered in Day 3's "physical time vs. logical time" material. Using `{{ ds }}` here means the sensor checks readiness for the specific day this DagRun is processing, so the same query is correct whether the DAG is running on schedule, being manually triggered, or backfilled for a past date.
+
+**Note on `mode="reschedule"`.** The sensor now uses `mode="reschedule"` instead of `deferrable=True`. In `reschedule` mode, the task releases its worker slot between poke attempts instead of occupying it while waiting — a lighter-weight option than the default `mode="poke"` when a deferrable-triggerer setup isn't in place. `deferrable=True` is the more modern equivalent where a supporting triggerer is available; both exist to solve the same problem — not blocking a worker slot for a long-running wait — via different mechanisms.
+
+Solves (Step 1): the upstream load can finish early or late; the pipeline now starts exactly when the data is actually ready instead of guessing a safety margin. Solves (Step 2): a single failing model no longer hides the status of every other model behind one opaque `dbt_run` task — each model becomes its own task, only the broken one turns red, and Cosmos automatically publishes an Airflow Asset for each model's output table by default.
+
+*Step 3, in a separate DAG — Asset-driven downstream trigger:*
 
 ```python
-from airflow.sdk import Asset, dag, task
+# dags/refresh_bi_dashboard.py
+from airflow.sdk import dag, task
+from cosmos import get_dbt_dataset
 
-fct_sales_asset = Asset("postgres://warehouse/public/fct_sales")
+# get_dbt_dataset builds the exact URI Cosmos will emit for this model —
+# it must not be hand-written, or the Asset key won't match dbt_transform's output.
+fct_sales_asset = get_dbt_dataset(
+    connection_id="warehouse_pg",
+    project_name="pricing_project",
+    model_name="fct_sales",
+)
 
 @dag(schedule=[fct_sales_asset], catchup=False)
 def refresh_bi_dashboard():
@@ -211,10 +250,17 @@ def refresh_bi_dashboard():
     def refresh():
         print("fct_sales updated; refreshing dashboard")
     refresh()
-```
-Solves: the BI refresh no longer runs on an approximate fixed delay after dbt "probably" finishes — it runs exactly when the specific model's output changes.
 
-**Analysis.** Each step targets a distinct failure mode: guesswork about *when* data is ready (Step 1), lack of granularity in *what* failed (Step 2), and guesswork about *when downstream consumers* should react (Step 3). None of the later steps make the earlier ones unnecessary — production pipelines commonly combine all three.
+refresh_bi_dashboard()
+```
+Solves: the BI refresh no longer runs on an approximate fixed delay after dbt "probably" finishes — it runs exactly when the specific model's output actually changes.
+
+**Analysis.** Each step targets a distinct failure mode: guesswork about *when* data is ready (Step 1), lack of granularity in *what* failed (Step 2), and guesswork about *when downstream consumers* should react (Step 3). None of the later steps make the earlier ones unnecessary — production pipelines commonly combine all three. Crucially, the three steps are not independent fragments: `wait_for_load` gates `dbt_transform` in the same DAG, and `dbt_transform`'s Cosmos-emitted Asset for `fct_sales` is exactly what `refresh_bi_dashboard` subscribes to via `get_dbt_dataset` — the two DAGs are wired together through a real, matching Asset key, not two independently-declared URIs that merely look similar.
+
+**Common mistakes.**
+1. Hand-writing the Asset URI instead of using `get_dbt_dataset` (or Cosmos's own emitted URI) — Airflow matches Assets by exact URI string, so even a small mismatch (wrong separator, missing database segment, wrong host) silently produces two different Assets, and `refresh_bi_dashboard` never triggers.
+2. Forgetting that the emitted URI format is execution-mode-dependent: `LOCAL`/`VIRTUALENV`/`WATCHER` resolve the namespace slightly differently, and it also changed between Cosmos versions targeting Airflow 2 (dot-separated, e.g. `postgres://host:5432/database.schema.table`) versus Airflow 3 (slash-separated, e.g. `postgres://host:5432/database/schema/table`). Upgrading Cosmos or the underlying OpenLineage library without re-checking this can silently break the Asset link.
+3. Treating Step 1's `SqlSensor` and Step 2's `DbtTaskGroup` as separate DAGs when they belong in the same one — splitting them would mean losing the actual `>>` dependency that makes the readiness gate matter.
 
 # 6. Connections and Variables
 

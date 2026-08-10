@@ -84,13 +84,13 @@ def notify_customer(**context):
 
 # 5. Airflow and dbt
 
-**Task.** A team currently runs dbt with a plain cron job at `0 5 * * *` (`dbt run`), hoping that the upstream Postgres → warehouse load has finished by then. This occasionally fails because the load is sometimes late. Redesign this as a three-step evolution, each step solving one specific weakness of the previous one:
+**Task.** A team currently runs dbt with a plain cron job at `0 5 * * *` (`dbt run`), hoping that the upstream Postgres → warehouse load has finished by then. This occasionally fails because the load is sometimes late. Redesign this as **one connected pipeline**, evolved in three steps, each solving one specific weakness of the previous one — not three independent snippets:
 
-1. Replace the fixed-time cron trigger with something that waits for actual data readiness (assume a `load_status` table with a `status` and `load_date` column).
-2. Replace the single coarse-grained `dbt run` task with per-model task granularity, so that a broken model does not hide the status of the other models.
-3. Instead of scheduling a downstream BI-refresh DAG on a fixed delay after dbt, trigger it precisely when a specific dbt model's output table is updated.
+1. Inside the same DAG, replace the fixed-time cron trigger with something that waits for actual data readiness (assume a `load_status` table with a `status` and `load_date` column), gating the dbt run itself.
+2. Replace the single coarse-grained `dbt run` task with per-model task granularity, so that a broken model does not hide the status of the other models, and make sure the specific model your downstream consumer needs (e.g. `fct_sales`) actually gets a queryable Asset published for it.
+3. In a separate downstream DAG, trigger a BI-refresh task precisely when that specific dbt model's output table is updated — not on a fixed delay after dbt "probably" finishes, and not by hand-writing a URI you hope matches.
 
-For each step, name the Airflow feature or operator you would use, and explain in one sentence what specific problem it solves that the previous step did not.
+For each step, name the Airflow feature or operator you would use, and explain in one sentence what specific problem it solves that the previous step did not. For step 3, also explain how you would guarantee the Asset your downstream DAG schedules on is the *same* Asset your dbt task group actually publishes.
 
 # 6. Connections and Variables
 
