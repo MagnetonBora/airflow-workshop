@@ -582,7 +582,7 @@ docker compose exec postgres psql -U airflow -d airflow -c "SELECT * FROM orders
 
 # 5. CLI
 
-**Task 1:** **`tasks test`** **+** **`backfill`****.** Given a `daily_metrics` DAG with `catchup=False`, calculating one metric per day:
+**Task 1:** `tasks test` **+** `backfill`. Given a `daily_metrics` DAG with `catchup=False`, calculating one metric per day:
 
 ```python
 from airflow.sdk import dag, task
