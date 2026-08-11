@@ -279,13 +279,16 @@ transform_group >> load()</code></pre>
       <div class="section-number">S19</div>
       <div class="eyebrow">Pools</div>
       <h2 class="section-heading">Protect a shared resource from concurrency</h2>
-      <pre><code>airflow pools set postgres_pool 5 \
-  <span class="str">"At most five production Postgres connections"</span>
-
-<span class="kw">@task</span>(pool=<span class="str">"postgres_pool"</span>)
+      <div class="terminal-window">
+        <div class="terminal-titlebar"><span class="terminal-dot terminal-dot-red"></span><span class="terminal-dot terminal-dot-yellow"></span><span class="terminal-dot terminal-dot-green"></span><span class="terminal-title">Terminal</span></div>
+        <pre><code><span class="terminal-prompt">workshop@airflow:~$</span> <span class="cm"># Create/update a pool with five task slots</span>
+<span class="terminal-prompt">workshop@airflow:~$</span> airflow pools set postgres_pool 5 <span class="str">"At most five production Postgres connections"</span></code></pre>
+      </div>
+      <pre><code><span class="kw">@task</span>(pool=<span class="str">"postgres_pool"</span>)
 <span class="kw">def</span> <span class="fn">query_postgres</span>():
     hook = PostgresHook(postgres_conn_id=<span class="str">"my_postgres"</span>)
     <span class="kw">return</span> hook.get_first(<span class="str">"SELECT COUNT(*) FROM my_table"</span>)</code></pre>
+      <ul class="bullets"><li><code>postgres_pool</code> is the pool name.</li><li><code>5</code> is the maximum number of task slots available at once.</li><li>Each <code>query_postgres</code> task uses one slot while it runs.</li></ul>
       <div class="hibox">TaskGroup changes presentation. A Pool changes actual concurrency for tasks assigned with <code>pool=</code>.</div>
       <div class="slide-logo">Apache Airflow · Workshop</div>
     </div>
