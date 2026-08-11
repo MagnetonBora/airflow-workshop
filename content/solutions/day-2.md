@@ -49,7 +49,34 @@ ingest_report()
 
 ## Task 2 — Predict the states
 
-**Description.** Reason about final task states without running the DAG: `extract` succeeds, `transform` (default rule) and `notify` (`one_failed`) both depend only on `extract`.
+**Description.** Reason about the final task states of `state_prediction_demo` without running it: `extract` succeeds, `transform` (default rule) depends on `extract`, and `notify` (`trigger_rule="one_failed"`) also depends on `extract`.
+
+```python
+from airflow.sdk import dag, task
+from datetime import datetime
+
+@dag(schedule="@daily", start_date=datetime(2026, 1, 1), catchup=False)
+def state_prediction_demo():
+
+    @task
+    def extract():
+        return "ok"
+
+    @task
+    def transform(data):
+        print(f"Transforming {data}")
+
+    @task(trigger_rule="one_failed")
+    def notify():
+        print("Something failed upstream")
+
+    extract_task = extract()
+    transform(extract_task)
+    notify_task = notify()
+    extract_task >> notify_task
+
+state_prediction_demo()
+```
 
 **Solution / Analysis.** `transform` runs and succeeds, because its only upstream task (`extract`) succeeded and `all_success` is satisfied. `notify` becomes `skipped`, because `one_failed` requires **at least one** upstream task to have failed, and `extract` succeeded — there is no failure to react to.
 

@@ -19,7 +19,34 @@ Wire the dependencies so `fetch_source` feeds both `build_summary` and `send_ale
 
 ## Task 2 — Predict the states
 
-**Task.** Given a DAG where `extract` succeeds, `transform` has the default `trigger_rule`, and `notify` has `trigger_rule="one_failed"`, and both `transform` and `notify` depend only on `extract` — state the final status of `transform` and `notify` without running the DAG, and explain why.
+**Task.** Given the following DAG, state the final status of `transform` and `notify` without running it, and explain why:
+
+```python
+from airflow.sdk import dag, task
+from datetime import datetime
+
+@dag(schedule="@daily", start_date=datetime(2026, 1, 1), catchup=False)
+def state_prediction_demo():
+
+    @task
+    def extract():
+        return "ok"
+
+    @task
+    def transform(data):
+        print(f"Transforming {data}")
+
+    @task(trigger_rule="one_failed")
+    def notify():
+        print("Something failed upstream")
+
+    extract_task = extract()
+    transform(extract_task)
+    notify_task = notify()
+    extract_task >> notify_task
+
+state_prediction_demo()
+```
 
 # 2. Data Interval and Catchup
 
