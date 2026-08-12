@@ -13,3 +13,9 @@ Welcome to this three-day hands-on workshop on Apache Airflow. The course progre
 [[materials/day-2|Day 2: DAGs, dbt, and Integrations]]
 
 [[materials/day-3|Day 3: Production, Diagnostics, and Monitoring]]
+
+<hr>
+
+<a href="https://github.com/MagnetonBora/airflow-workshop">Workshop Presentation Repository</a>
+
+<a href="https://github.com/MagnetonBora/airflow-exercises">Exercises and Examples Repository</a>
